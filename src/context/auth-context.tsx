@@ -12,6 +12,9 @@ import {
 import { restoreSession } from '@/lib/session/restore-session';
 import { messageStore } from '@/lib/storage/singleton';
 import { setPoolAuth, clearPoolAuth } from '@/lib/relay/pool';
+
+const LAST_PUBKEY_KEY = 'privdm:lastPubkey';
+
 interface AuthState {
   signer: NIP44Signer | null;
   pubkey: string | null;
@@ -36,12 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (signer: NIP44Signer, session?: StoredSession) => {
     const pubkey = await signer.getPublicKey();
+
+    const lastPubkey = localStorage.getItem(LAST_PUBKEY_KEY);
+    if (lastPubkey && lastPubkey !== pubkey) {
+      queryClient.clear();
+      await messageStore.clear();
+    }
+    localStorage.setItem(LAST_PUBKEY_KEY, pubkey);
+
     if (session) {
       saveSession(session);
     }
     setPoolAuth(signer);
     setState({ signer, pubkey });
-  }, []);
+  }, [queryClient]);
 
   const logout = useCallback(() => {
     setState({ signer: null, pubkey: null });
@@ -50,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearPoolAuth();
     queryClient.clear();
     void messageStore.clear();
+    localStorage.removeItem(LAST_PUBKEY_KEY);
   }, [queryClient]);
 
   useEffect(() => {
