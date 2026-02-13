@@ -67,16 +67,16 @@ describe('useConnectionStatus', () => {
     expect(result.current.isConnected).toBe(true);
   });
 
-  it('does not call onReconnect on visibilitychange if already connected', () => {
+  it('calls onReconnect on visibilitychange even if already connected', () => {
     const onReconnect = vi.fn();
     renderHook(() => useConnectionStatus(onReconnect));
 
-    // Tab becomes visible while still connected — no reconnect needed
+    // Tab becomes visible — always reconnect to catch up after background throttling
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    expect(onReconnect).not.toHaveBeenCalled();
+    expect(onReconnect).toHaveBeenCalledTimes(1);
   });
 
   it('manual reconnect() triggers onReconnect and restores state', () => {

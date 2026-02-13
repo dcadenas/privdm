@@ -6,7 +6,7 @@ let currentSigner: NIP44Signer | null = null;
 
 export function getPool(): SimplePool {
   if (!pool) {
-    pool = new SimplePool();
+    pool = new SimplePool({ enableReconnect: true });
     pool.automaticallyAuth = () => {
       if (!currentSigner) return null;
       const signer = currentSigner;

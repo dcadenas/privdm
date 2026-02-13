@@ -26,13 +26,10 @@ export function useConnectionStatus(onReconnect?: () => void): ConnectionStatus 
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Only reconnect if we were disconnected
-        setIsConnected((prev) => {
-          if (!prev) {
-            doReconnect();
-          }
-          return prev;
-        });
+        // Always restart subscription when tab becomes visible.
+        // Browsers throttle/kill WebSocket connections in backgrounded tabs,
+        // so we may have missed events.
+        doReconnect();
       }
     };
 
