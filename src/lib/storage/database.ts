@@ -36,6 +36,8 @@ export interface StoredProfile {
   picture?: string;
   about?: string;
   nip05?: string;
+  banner?: string;
+  website?: string;
   createdAt: number;
 }
 

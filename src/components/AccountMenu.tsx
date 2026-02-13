@@ -4,12 +4,14 @@ import { useAuth } from '@/context/auth-context';
 import { useProfile } from '@/hooks/use-profile';
 import { resolveIdentity, toNpub } from '@/lib/nostr-identity';
 import { ProfilePic } from '@/components/profile';
+import { EditProfileDialog } from '@/components/EditProfileDialog';
 
 export function AccountMenu() {
   const { pubkey, logout } = useAuth();
   const { data: profile } = useProfile(pubkey ?? '');
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -81,10 +83,15 @@ export function AccountMenu() {
           npub={npub}
           copied={copied}
           onCopy={handleCopy}
+          onEditProfile={() => { close(); setShowEditProfile(true); }}
           onSignOut={() => { close(); logout(); }}
           onClose={close}
         />,
         document.body,
+      )}
+
+      {showEditProfile && (
+        <EditProfileDialog onClose={() => setShowEditProfile(false)} />
       )}
     </>
   );
@@ -95,6 +102,7 @@ interface AccountDropdownProps {
   npub: string;
   copied: boolean;
   onCopy: () => void;
+  onEditProfile: () => void;
   onSignOut: () => void;
   onClose: () => void;
 }
@@ -102,7 +110,7 @@ interface AccountDropdownProps {
 import { forwardRef } from 'react';
 
 const AccountDropdown = forwardRef<HTMLDivElement, AccountDropdownProps>(
-  function AccountDropdown({ anchorRef, npub, copied, onCopy, onSignOut }, ref) {
+  function AccountDropdown({ anchorRef, npub, copied, onCopy, onEditProfile, onSignOut }, ref) {
     const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
 
     useEffect(() => {
@@ -139,6 +147,20 @@ const AccountDropdown = forwardRef<HTMLDivElement, AccountDropdownProps>(
             <p className="text-xs text-gray-300">{copied ? 'Copied!' : 'Copy public key'}</p>
             <p className="truncate font-mono text-[10px] text-gray-600">{npub}</p>
           </div>
+        </button>
+
+        {/* Edit profile */}
+        <button
+          onClick={onEditProfile}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left
+                     transition-colors hover:bg-gray-800/60"
+          data-testid="edit-profile-button"
+          role="menuitem"
+        >
+          <svg className="h-4 w-4 shrink-0 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+          </svg>
+          <p className="text-xs text-gray-300">Edit profile</p>
         </button>
 
         {/* Divider */}

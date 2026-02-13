@@ -18,6 +18,8 @@ export class DexieProfileStore {
         picture: profile.picture,
         about: profile.about,
         nip05: profile.nip05,
+        banner: profile.banner,
+        website: profile.website,
         createdAt,
       });
     });

@@ -509,7 +509,7 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
           </>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center text-center">
-            <div className="mb-4 text-4xl text-gray-800">⚡</div>
+            <div className="mb-4 text-4xl text-gray-800">💬</div>
             <h2 className="font-display text-xl font-semibold text-gray-600">
               Select a conversation
             </h2>

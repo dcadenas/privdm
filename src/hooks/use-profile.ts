@@ -10,6 +10,25 @@ export interface NostrProfile {
   picture?: string;
   about?: string;
   nip05?: string;
+  banner?: string;
+  website?: string;
+}
+
+const STRING_FIELDS = ['name', 'picture', 'about', 'nip05', 'banner', 'website'] as const;
+
+export function parseProfile(raw: Record<string, unknown>): NostrProfile {
+  const profile: NostrProfile = {};
+  for (const key of STRING_FIELDS) {
+    if (typeof raw[key] === 'string') {
+      profile[key] = raw[key] as string;
+    }
+  }
+  // Normalize display_name → displayName (display_name is the canonical JSON field)
+  const dn = raw['display_name'] ?? raw['displayName'];
+  if (typeof dn === 'string') {
+    profile.displayName = dn;
+  }
+  return profile;
 }
 
 export function useProfile(pubkey: string | null) {
@@ -26,7 +45,8 @@ export function useProfile(pubkey: string | null) {
       if (!event) return null;
 
       try {
-        const profile = JSON.parse(event.content) as NostrProfile;
+        const raw = JSON.parse(event.content) as Record<string, unknown>;
+        const profile = parseProfile(raw);
         profileStore.save(pubkey!, profile, event.created_at);
         return profile;
       } catch {
