@@ -1,0 +1,14 @@
+node_modules
+dist
+*.local
+.env
+.env.*
+!.env.example
+.playwright-mcp/
+test-results/
+playwright-report/
+playwright/.cache/
+*.png
+!public/divine-icon.png
+!public/og-image.png
+!public/apple-touch-icon.png

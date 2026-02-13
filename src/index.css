@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Outfit', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+@layer components {
+  .login-glow {
+    background: radial-gradient(
+      ellipse 600px 400px at 50% 40%,
+      rgba(245, 158, 11, 0.06) 0%,
+      transparent 70%
+    );
+  }
+
+  .input-dark {
+    @apply w-full rounded-lg border border-gray-700/60 bg-gray-900/80 px-4 py-3
+           text-gray-100 placeholder-gray-500 font-mono text-sm
+           outline-none transition-all duration-200
+           focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20;
+  }
+
+  .btn-primary {
+    @apply rounded-lg bg-amber-500 px-5 py-2.5 font-sans font-medium text-gray-950
+           transition-all duration-200
+           hover:bg-amber-400 active:scale-[0.98]
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-amber-500;
+  }
+
+  .btn-ghost {
+    @apply rounded-lg border border-gray-700/50 bg-transparent px-4 py-2.5
+           font-sans text-sm text-gray-300
+           transition-all duration-200
+           hover:border-gray-600 hover:bg-gray-800/50 hover:text-gray-100;
+  }
+}
