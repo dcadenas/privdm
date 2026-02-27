@@ -128,10 +128,10 @@ export class GiftWrapSubscriptionManager {
 
           console.debug('[subscription] message:', {
             rumorId: unwrapped.rumor.id.slice(0, 8),
-            sender: unwrapped.senderPubkey.slice(0, 8),
+            sender: unwrapped.senderPubkey,
             conversationId: unwrapped.conversationId,
-            pTags: unwrapped.rumor.tags.filter(t => t[0] === 'p').map(t => t[1]?.slice(0, 8)),
-            rumorPubkey: unwrapped.rumor.pubkey.slice(0, 8),
+            pTags: unwrapped.rumor.tags.filter(t => t[0] === 'p').map(t => t[1]),
+            rumorPubkey: unwrapped.rumor.pubkey,
           });
 
           await insertMessage(queryClient, message, store, event.created_at);
@@ -188,6 +188,13 @@ export async function insertMessage(
       }
 
       const participants = message.conversationId.split('+');
+      console.debug('[insertMessage] NEW conversation:', {
+        conversationId: message.conversationId,
+        participants,
+        rumorId: message.id.slice(0, 8),
+        sender: message.senderPubkey,
+        existingConversations: prev.map(c => c.id),
+      });
       const newConversation: Conversation = {
         id: message.conversationId,
         participants,

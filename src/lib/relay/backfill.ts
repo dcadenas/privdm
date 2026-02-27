@@ -97,10 +97,10 @@ async function processEvent(
 
   console.debug('[backfill] message:', {
     rumorId: unwrapped.rumor.id.slice(0, 8),
-    sender: unwrapped.senderPubkey.slice(0, 8),
+    sender: unwrapped.senderPubkey,
     conversationId: unwrapped.conversationId,
-    pTags: unwrapped.rumor.tags.filter(t => t[0] === 'p').map(t => t[1]?.slice(0, 8)),
-    rumorPubkey: unwrapped.rumor.pubkey.slice(0, 8),
+    pTags: unwrapped.rumor.tags.filter(t => t[0] === 'p').map(t => t[1]),
+    rumorPubkey: unwrapped.rumor.pubkey,
   });
 
   return insertMessage(queryClient, message, store, event.created_at);

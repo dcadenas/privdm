@@ -34,8 +34,9 @@ export function useSendMessage() {
       console.debug('[send] optimistic:', {
         conversationId,
         rumorId: rumor.id.slice(0, 8),
-        myPubkey: pubkey.slice(0, 8),
-        recipients: recipients.map(r => r.pubkey.slice(0, 8)),
+        myPubkey: pubkey,
+        recipients: recipients.map(r => r.pubkey),
+        selectedConversation: conversationId,
       });
 
       // Cancel any in-flight message query so it doesn't overwrite the optimistic update
