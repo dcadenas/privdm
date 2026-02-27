@@ -52,6 +52,12 @@ export function useGiftWrapSubscription(): ConnectionStatus {
       }
 
       if (conversations.length > 0) {
+        console.debug('[hydrate] conversations:', conversations.map(c => ({
+          id: c.id,
+          participants: c.participants,
+          messageCount: c.messageCount,
+          lastMessageSender: c.lastMessage.senderPubkey,
+        })));
         queryClient.setQueryData(QUERY_KEYS.conversations, conversations);
 
         await Promise.all(
