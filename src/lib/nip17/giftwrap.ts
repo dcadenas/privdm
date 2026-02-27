@@ -8,7 +8,7 @@ import type { NIP44Signer } from '../signer/types';
 import { randomPastTimestamp } from './timestamp';
 import { createRumor } from './rumor';
 import { createSeal } from './seal';
-import type { Recipient, CreateRumorOptions } from './types';
+import type { Recipient, CreateRumorOptions, Rumor } from './types';
 
 /** Wraps a seal for a single recipient using a local ephemeral key. */
 export function wrapSeal(seal: VerifiedEvent, recipientPubkey: string): VerifiedEvent {
@@ -37,11 +37,16 @@ export interface GiftWrapResult {
 export async function createGiftWraps(
   signer: NIP44Signer,
   recipients: Recipient[],
-  message: string,
+  messageOrRumor: string | Rumor,
   options?: CreateRumorOptions,
 ): Promise<GiftWrapResult> {
-  const senderPubkey = await signer.getPublicKey();
-  const rumor = createRumor(senderPubkey, recipients, message, options);
+  let rumor: Rumor;
+  if (typeof messageOrRumor === 'string') {
+    const senderPubkey = await signer.getPublicKey();
+    rumor = createRumor(senderPubkey, recipients, messageOrRumor, options);
+  } else {
+    rumor = messageOrRumor;
+  }
 
   const wraps: VerifiedEvent[] = [];
 
@@ -51,8 +56,8 @@ export async function createGiftWraps(
   }
 
   // Self-wrap so sender can read their own sent messages
-  const selfSeal = await createSeal(signer, rumor, senderPubkey);
-  const selfWrap = wrapSeal(selfSeal, senderPubkey);
+  const selfSeal = await createSeal(signer, rumor, rumor.pubkey);
+  const selfWrap = wrapSeal(selfSeal, rumor.pubkey);
 
   return { wraps, selfWrap };
 }

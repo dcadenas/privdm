@@ -2,6 +2,7 @@ import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
 import { NsecSigner } from '../../signer/nsec-signer';
 import { createGiftWraps } from '../giftwrap';
+import { createRumor } from '../rumor';
 import { unwrapGiftWrap } from '../unwrap';
 
 function makeSigner() {
@@ -112,6 +113,22 @@ describe('NIP-17 roundtrip', () => {
     const unwrapped = await unwrapGiftWrap(bob.signer, result.wraps[0]!);
     const eTag = unwrapped.rumor.tags.find((t) => t[0] === 'e');
     expect(eTag).toEqual(['e', 'original-event-id']);
+  });
+
+  it('pre-created rumor preserves rumor ID through gift wrap', async () => {
+    const alice = makeSigner();
+    const bob = makeSigner();
+
+    const rumor = createRumor(alice.pubkey, [{ pubkey: bob.pubkey }], 'Pre-created');
+    const result = await createGiftWraps(alice.signer, [{ pubkey: bob.pubkey }], rumor);
+
+    const bobUnwrapped = await unwrapGiftWrap(bob.signer, result.wraps[0]!);
+    const aliceUnwrapped = await unwrapGiftWrap(alice.signer, result.selfWrap);
+
+    // The unwrapped rumor must have the exact same ID as the pre-created one
+    expect(bobUnwrapped.rumor.id).toBe(rumor.id);
+    expect(aliceUnwrapped.rumor.id).toBe(rumor.id);
+    expect(bobUnwrapped.rumor.content).toBe('Pre-created');
   });
 
   it('Bob cannot decrypt a wrap addressed to Charlie', async () => {

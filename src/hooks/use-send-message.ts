@@ -33,9 +33,13 @@ export function useSendMessage() {
 
       console.debug('[send] optimistic:', {
         conversationId,
+        rumorId: rumor.id.slice(0, 8),
         myPubkey: pubkey.slice(0, 8),
         recipients: recipients.map(r => r.pubkey.slice(0, 8)),
       });
+
+      // Cancel any in-flight message query so it doesn't overwrite the optimistic update
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.messages(conversationId) });
 
       const optimisticMessage: DecryptedMessage = {
         id: rumor.id,
@@ -93,7 +97,7 @@ export function useSendMessage() {
       void readStateStore.markRead(conversationId, rumor.created_at);
 
       // Now do the actual gift-wrap + publish (slow part)
-      const { wraps, selfWrap } = await createGiftWraps(signer, recipients, message, options);
+      const { wraps, selfWrap } = await createGiftWraps(signer, recipients, rumor);
 
       const publishPromises: Promise<void>[] = [];
 
