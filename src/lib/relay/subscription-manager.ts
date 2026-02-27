@@ -126,6 +126,14 @@ export class GiftWrapSubscriptionManager {
             wrapId: event.id,
           };
 
+          console.debug('[subscription] message:', {
+            rumorId: unwrapped.rumor.id.slice(0, 8),
+            sender: unwrapped.senderPubkey.slice(0, 8),
+            conversationId: unwrapped.conversationId,
+            pTags: unwrapped.rumor.tags.filter(t => t[0] === 'p').map(t => t[1]?.slice(0, 8)),
+            rumorPubkey: unwrapped.rumor.pubkey.slice(0, 8),
+          });
+
           await insertMessage(queryClient, message, store, event.created_at);
         } catch {
           // Skip events we can't decrypt (not addressed to us, corrupted, etc.)

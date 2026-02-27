@@ -31,6 +31,12 @@ export function useSendMessage() {
       const allPubkeys = [pubkey, ...recipients.map((r) => r.pubkey)];
       const conversationId = [...new Set(allPubkeys)].sort().join('+');
 
+      console.debug('[send] optimistic:', {
+        conversationId,
+        myPubkey: pubkey.slice(0, 8),
+        recipients: recipients.map(r => r.pubkey.slice(0, 8)),
+      });
+
       const optimisticMessage: DecryptedMessage = {
         id: rumor.id,
         conversationId,
