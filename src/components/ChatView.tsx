@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, type MouseEvent, type TouchEvent } from 'react';
 import { nip19, nip05 } from 'nostr-tools';
 import { useAuth } from '@/context/auth-context';
 import { useConversations } from '@/hooks/use-conversations';
@@ -80,6 +80,39 @@ function ConversationItem({
   );
 }
 
+// ─── Copy Button ────────────────────────────────────────────────
+function CopyButton({ content, isMine }: { content: string; isMine: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy(e: MouseEvent) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`absolute bottom-1 right-1 rounded p-0.5 opacity-0 transition-opacity
+                  group-hover:opacity-100 group-data-[revealed]:opacity-100
+                  ${isMine ? 'text-gray-950/40 hover:text-gray-950/70' : 'text-gray-400/40 hover:text-gray-400/70'}`}
+      data-testid="copy-message"
+    >
+      {copied ? (
+        <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3.5 8.5L6.5 11.5L12.5 5" />
+        </svg>
+      ) : (
+        <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+          <rect x="5.5" y="5.5" width="7" height="8" rx="1" />
+          <path d="M3.5 10.5V3.5a1 1 0 011-1h5" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 // ─── Message Bubble ─────────────────────────────────────────────
 function MessageBubble({
   message,
@@ -94,6 +127,14 @@ function MessageBubble({
   showTimestamp: boolean;
   isFirstInGroup: boolean;
 }) {
+  const [tapped, setTapped] = useState(false);
+
+  function handleTap(e: TouchEvent) {
+    // Only handle taps on the bubble itself, not on links/media
+    if ((e.target as HTMLElement).closest('a, button, video, img')) return;
+    setTapped((v) => !v);
+  }
+
   return (
     <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} ${isFirstInGroup ? '' : 'mt-0.5'}`}>
       <div className={`max-w-[75%] ${isMine ? 'items-end' : 'items-start'}`}>
@@ -103,13 +144,16 @@ function MessageBubble({
           </p>
         )}
         <div
-          className={`rounded-2xl px-4 py-2 text-sm leading-relaxed ${
+          className={`group relative rounded-2xl px-4 py-2 text-sm leading-relaxed ${
             isMine
               ? 'bg-amber-500 text-gray-950 rounded-br-md'
               : 'bg-gray-800/80 text-gray-200 border border-gray-700/30 rounded-bl-md'
           }`}
+          onTouchEnd={handleTap}
+          data-revealed={tapped || undefined}
         >
           <MessageContent content={message.content} isMine={isMine} />
+          <CopyButton content={message.content} isMine={isMine} />
         </div>
         {showTimestamp && (
           <p className={`mt-0.5 flex items-center gap-1 text-[10px] text-gray-600 ${isMine ? 'justify-end mr-1' : 'ml-1'}`}>
