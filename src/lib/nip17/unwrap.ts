@@ -27,6 +27,12 @@ export async function unwrapGiftWrap(
     );
   }
 
+  // Step 5: Reject non-DM rumors (must be kind 14 per NIP-17)
+  if (rumor.kind !== 14) {
+    console.warn('[unwrap] rejecting non-DM rumor:', { kind: rumor.kind, id: rumor.id, pubkey: rumor.pubkey });
+    throw new Error(`Expected kind 14 DM rumor, got kind ${rumor.kind}`);
+  }
+
   return {
     rumor,
     senderPubkey: rumor.pubkey,
