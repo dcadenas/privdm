@@ -80,6 +80,27 @@ function ConversationItem({
   );
 }
 
+// ─── Dev Mode ───────────────────────────────────────────────────
+const isDevMode = () => new URLSearchParams(window.location.search).has('dev');
+
+// ─── Copy Icon (shared) ────────────────────────────────────────
+function CopyIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5.5" y="5.5" width="7" height="8" rx="1" />
+      <path d="M3.5 10.5V3.5a1 1 0 011-1h5" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 8.5L6.5 11.5L12.5 5" />
+    </svg>
+  );
+}
+
 // ─── Copy Button ────────────────────────────────────────────────
 function CopyButton({ content, isMine }: { content: string; isMine: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -94,19 +115,45 @@ function CopyButton({ content, isMine }: { content: string; isMine: boolean }) {
   return (
     <button
       onClick={handleCopy}
-      className={`absolute bottom-1 right-1 rounded p-0.5 opacity-0 transition-opacity
+      className={`rounded p-0.5 opacity-0 transition-opacity
                   group-hover:opacity-100 group-data-[revealed]:opacity-100
                   ${isMine ? 'text-gray-950/40 hover:text-gray-950/70' : 'text-gray-400/40 hover:text-gray-400/70'}`}
       data-testid="copy-message"
     >
-      {copied ? (
-        <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3.5 8.5L6.5 11.5L12.5 5" />
-        </svg>
-      ) : (
+      {copied ? <CheckIcon /> : <CopyIcon />}
+    </button>
+  );
+}
+
+// ─── Copy Raw Button (dev mode only) ────────────────────────────
+function CopyRawButton({ message, isMine }: { message: DecryptedMessage; isMine: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy(e: MouseEvent) {
+    e.stopPropagation();
+    const raw = {
+      conversationId: message.conversationId,
+      wrapId: message.wrapId,
+      rumor: message.rumor,
+    };
+    navigator.clipboard.writeText(JSON.stringify(raw, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      title="Copy raw rumor JSON"
+      className={`rounded p-0.5 opacity-0 transition-opacity
+                  group-hover:opacity-100 group-data-[revealed]:opacity-100
+                  ${isMine ? 'text-gray-950/40 hover:text-gray-950/70' : 'text-gray-400/40 hover:text-gray-400/70'}`}
+      data-testid="copy-raw-message"
+    >
+      {copied ? <CheckIcon /> : (
         <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-          <rect x="5.5" y="5.5" width="7" height="8" rx="1" />
-          <path d="M3.5 10.5V3.5a1 1 0 011-1h5" />
+          <path d="M4 2h8l2 2v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" />
+          <path d="M6 7h4M6 10h2" />
         </svg>
       )}
     </button>
@@ -153,7 +200,10 @@ function MessageBubble({
           data-revealed={tapped || undefined}
         >
           <MessageContent content={message.content} isMine={isMine} />
-          <CopyButton content={message.content} isMine={isMine} />
+          <div className="absolute bottom-1 right-1 flex gap-0.5">
+            {isDevMode() && <CopyRawButton message={message} isMine={isMine} />}
+            <CopyButton content={message.content} isMine={isMine} />
+          </div>
         </div>
         {showTimestamp && (
           <p className={`mt-0.5 flex items-center gap-1 text-[10px] text-gray-600 ${isMine ? 'justify-end mr-1' : 'ml-1'}`}>
