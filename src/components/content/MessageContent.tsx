@@ -1,5 +1,6 @@
-import { Fragment, useMemo } from 'react';
+import { useMemo } from 'react';
 import { parseContent, shortenUrl } from '@/lib/content/parse';
+import { renderMarkdown } from '@/lib/content/markdown';
 import { InlineImage, InlineVideo, YouTubeThumbnail } from './InlineMedia';
 import { NostrMention } from './NostrMention';
 import { QuotedEvent } from './QuotedEvent';
@@ -17,7 +18,13 @@ export function MessageContent({ content, isMine }: { content: string; isMine: b
       {segments.map((seg, i) => {
         switch (seg.type) {
           case 'text':
-            return <Fragment key={i}>{seg.value}</Fragment>;
+            return (
+              <span
+                key={i}
+                className={`markdown-inline ${isMine ? 'markdown-mine' : 'markdown-theirs'}`}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(seg.value) }}
+              />
+            );
           case 'url':
             return (
               <a key={i} href={seg.value} target="_blank" rel="noopener noreferrer" className={linkClass}>
