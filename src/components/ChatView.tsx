@@ -426,7 +426,7 @@ function ComposeArea({
           placeholder={disabled ? 'Reconnecting...' : 'Write a message...'}
           rows={1}
           className="min-w-0 flex-1 resize-none rounded-xl border border-gray-800/50 bg-gray-900/60 px-3 py-2.5
-                     text-sm text-gray-100 placeholder-gray-600 outline-none
+                     text-base text-gray-100 placeholder-gray-600 outline-none
                      transition-colors focus:border-gray-700 focus:bg-gray-900/80"
           data-testid="compose-input"
         />
