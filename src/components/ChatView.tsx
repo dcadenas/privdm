@@ -324,9 +324,24 @@ function MessageArea({
 }) {
   const { data: messages = [] } = useMessages(conversationId);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prevCountRef = useRef(0);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const prevCount = prevCountRef.current;
+    prevCountRef.current = messages.length;
+
+    // Only auto-scroll when new messages are appended (not prepended by backfill)
+    // and user is already near the bottom
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const isNearBottom = distanceFromBottom < 150;
+    const isNewMessage = messages.length > prevCount;
+
+    if (isNearBottom || (isNewMessage && prevCount === 0)) {
+      el.scrollTo({ top: el.scrollHeight, behavior: isNewMessage && prevCount > 0 ? 'smooth' : 'auto' });
+    }
   }, [messages.length]);
 
   if (messages.length === 0) {
@@ -400,7 +415,7 @@ function ComposeArea({
   }
 
   return (
-    <div className="border-t border-gray-800/50 bg-gray-950/80 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:px-4 md:py-3">
+    <div className="shrink-0 border-t border-gray-800/50 bg-gray-950/80 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:px-4 md:py-3">
       <div className="flex items-end gap-2">
         <textarea
           ref={inputRef}
@@ -410,7 +425,7 @@ function ComposeArea({
           disabled={disabled}
           placeholder={disabled ? 'Reconnecting...' : 'Write a message...'}
           rows={1}
-          className="flex-1 resize-none rounded-xl border border-gray-800/50 bg-gray-900/60 px-4 py-2.5
+          className="min-w-0 flex-1 resize-none rounded-xl border border-gray-800/50 bg-gray-900/60 px-3 py-2.5
                      text-sm text-gray-100 placeholder-gray-600 outline-none
                      transition-colors focus:border-gray-700 focus:bg-gray-900/80"
           data-testid="compose-input"
