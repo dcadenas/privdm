@@ -416,7 +416,7 @@ function ComposeArea({
 
   return (
     <div className="shrink-0 border-t border-gray-800/50 bg-gray-950/80 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:px-4 md:py-3">
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-2 overflow-hidden">
         <textarea
           ref={inputRef}
           value={text}
@@ -595,7 +595,7 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
       </aside>
 
       {/* Main message area — full-width on mobile, flex on desktop */}
-      <main className={`flex flex-1 flex-col ${showChat ? 'flex' : 'hidden md:flex'}`}>
+      <main className={`flex min-w-0 flex-1 flex-col overflow-hidden ${showChat ? 'flex' : 'hidden md:flex'}`}>
         {selectedId ? (
           <>
             {/* Chat header */}
