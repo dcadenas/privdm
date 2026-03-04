@@ -483,8 +483,7 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
       {/* Sidebar — full-width on mobile, fixed-width on desktop, collapsible */}
       <aside className={`flex w-full flex-col border-r border-gray-800/40 bg-gray-950
                          md:w-80 md:shrink-0 transition-all duration-200
-                         ${sidebarCollapsed ? 'hidden' : ''}
-                         ${showChat ? 'hidden md:flex' : 'flex'}
+                         ${showChat ? 'hidden' : 'flex'}
                          ${sidebarCollapsed ? 'md:hidden' : 'md:flex'}`}>
         {/* Sidebar header — avatar + name on left, gear + compose on right */}
         <div className="flex items-center justify-between border-b border-gray-800/40 px-4 py-3.5">
