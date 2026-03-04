@@ -436,6 +436,7 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNewConv, setShowNewConv] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const selected = conversations.find((c) => c.id === selectedId);
 
@@ -479,9 +480,12 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
         onRetry={connectionStatus.reconnect}
       />
       <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar — full-width on mobile, fixed-width on desktop */}
+      {/* Sidebar — full-width on mobile, fixed-width on desktop, collapsible */}
       <aside className={`flex w-full flex-col border-r border-gray-800/40 bg-gray-950
-                         md:w-80 md:shrink-0 md:flex ${showChat ? 'hidden md:flex' : 'flex'}`}>
+                         md:w-80 md:shrink-0 transition-all duration-200
+                         ${sidebarCollapsed ? 'hidden' : ''}
+                         ${showChat ? 'hidden md:flex' : 'flex'}
+                         ${sidebarCollapsed ? 'md:hidden' : 'md:flex'}`}>
         {/* Sidebar header — avatar + name on left, gear + compose on right */}
         <div className="flex items-center justify-between border-b border-gray-800/40 px-4 py-3.5">
           <AccountMenu />
@@ -583,6 +587,22 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+              {/* Sidebar toggle (desktop only) */}
+              <button
+                onClick={() => setSidebarCollapsed((v) => !v)}
+                className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-gray-400
+                           transition-colors hover:bg-gray-800/50 hover:text-gray-200"
+                title={sidebarCollapsed ? 'Show conversations' : 'Hide conversations'}
+                data-testid="sidebar-toggle"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {sidebarCollapsed ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                  )}
                 </svg>
               </button>
               {recipientPubkeys[0] && (
