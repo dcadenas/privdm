@@ -20,6 +20,8 @@ export interface StartOptions {
 }
 
 const RATE_LIMIT_RESTART_DELAY = 5_000;
+const RECONNECT_DELAY = 3_000;
+const RECONNECT_OVERLAP = 30; // seconds of overlap when resubscribing
 
 export class GiftWrapSubscriptionManager {
   private sub: SubCloser | null = null;
@@ -28,6 +30,8 @@ export class GiftWrapSubscriptionManager {
   private queue: Event[] = [];
   private startOptions: StartOptions | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastEventTimestamp = 0;
+  private stopped = false;
 
   seedProcessedWrapIds(ids: Set<string>): void {
     for (const id of ids) {
@@ -40,6 +44,7 @@ export class GiftWrapSubscriptionManager {
     this.sub?.close();
     this.sub = null;
     this.queue = [];
+    this.stopped = false;
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
 
     this.startOptions = options;
@@ -50,15 +55,20 @@ export class GiftWrapSubscriptionManager {
       filter.since = since;
     }
 
+    console.debug('[subscription] starting, since:', since ? new Date(since * 1000).toISOString() : 'none');
+
     this.sub = pool.subscribeMany(
       dmRelays,
       filter,
       {
         onevent: (event: Event) => {
+          this.lastEventTimestamp = Math.max(this.lastEventTimestamp, event.created_at);
           this.queue.push(event);
           void this.processQueue(signer, queryClient, store);
         },
         onclose: (reasons: string[]) => {
+          if (this.stopped) return;
+
           let rateLimited = false;
           for (const reason of reasons) {
             if (reason) {
@@ -66,10 +76,11 @@ export class GiftWrapSubscriptionManager {
               if (reason.startsWith('rate-limited:')) rateLimited = true;
             }
           }
-          if (rateLimited && this.startOptions) {
-            console.warn(`[subscription] rate-limited, restarting in ${RATE_LIMIT_RESTART_DELAY}ms`);
-            this.restartTimer = setTimeout(() => this.restart(), RATE_LIMIT_RESTART_DELAY);
-          }
+
+          // Auto-restart on any close (persistent subscription loop)
+          const delay = rateLimited ? RATE_LIMIT_RESTART_DELAY : RECONNECT_DELAY;
+          console.log(`[subscription] closed, restarting in ${delay}ms`);
+          this.restartTimer = setTimeout(() => this.restart(), delay);
         },
       } as never,
     );
@@ -77,16 +88,21 @@ export class GiftWrapSubscriptionManager {
 
   restart(): void {
     if (!this.startOptions) return;
-    // Recalculate since with fresh now to cover NIP-17 randomization window
+    // Use last event timestamp with overlap if available, otherwise fall back to 3-day window
     const THREE_DAYS = 3 * 24 * 60 * 60;
-    this.start({ ...this.startOptions, since: Math.floor(Date.now() / 1000) - THREE_DAYS });
+    const since = this.lastEventTimestamp > 0
+      ? this.lastEventTimestamp - RECONNECT_OVERLAP
+      : Math.floor(Date.now() / 1000) - THREE_DAYS;
+    this.start({ ...this.startOptions, since });
   }
 
   stop(): void {
+    this.stopped = true;
     this.sub?.close();
     this.sub = null;
     this.queue = [];
     this.processedWrapIds.clear();
+    this.lastEventTimestamp = 0;
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
   }
 
