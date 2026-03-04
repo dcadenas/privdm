@@ -373,6 +373,14 @@ function ComposeArea({
   const { mutate: send, isPending } = useSendMessage();
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Auto-resize textarea up to ~6 lines, then scroll
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 144) + 'px'; // ~6 lines at 24px
+  }, [text]);
+
   function handleSend() {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
@@ -392,7 +400,7 @@ function ComposeArea({
   }
 
   return (
-    <div className="border-t border-gray-800/50 bg-gray-950/80 px-3 py-2.5 md:px-4 md:py-3">
+    <div className="border-t border-gray-800/50 bg-gray-950/80 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:px-4 md:py-3">
       <div className="flex items-end gap-2">
         <textarea
           ref={inputRef}
@@ -473,7 +481,7 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
   const showChat = !!selectedId;
 
   return (
-    <div className="flex h-screen flex-col bg-gray-950 text-gray-100">
+    <div className="flex h-dvh flex-col bg-gray-950 text-gray-100">
       <ConnectionBanner
         isConnected={connectionStatus.isConnected}
         isReconnecting={connectionStatus.isReconnecting}
