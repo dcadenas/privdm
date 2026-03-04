@@ -22,8 +22,6 @@ export interface StartOptions {
 const RATE_LIMIT_RESTART_DELAY = 5_000;
 const RECONNECT_DELAY = 3_000;
 const RECONNECT_OVERLAP = 30; // seconds of overlap when resubscribing
-const REFRESH_INTERVAL = 2 * 60 * 1000; // re-subscribe every 2 min to catch silently-dropped subs
-
 export class GiftWrapSubscriptionManager {
   private sub: SubCloser | null = null;
   private processedWrapIds = new Set<string>();
@@ -31,7 +29,6 @@ export class GiftWrapSubscriptionManager {
   private queue: Event[] = [];
   private startOptions: StartOptions | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
-  private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private lastEventTimestamp = 0;
   private stopped = false;
 
@@ -48,7 +45,6 @@ export class GiftWrapSubscriptionManager {
     this.queue = [];
     this.stopped = false;
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
-    if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
 
     this.startOptions = options;
     const { pool, userPubkey, dmRelays, signer, queryClient, store, since } = options;
@@ -87,14 +83,6 @@ export class GiftWrapSubscriptionManager {
         },
       } as never,
     );
-
-    // Periodically refresh the subscription to recover from silently-dropped subs.
-    // The pool's onclose only fires when ALL relays close; a single relay dropping
-    // its subscription goes undetected. This ensures we re-subscribe regularly.
-    this.refreshTimer = setInterval(() => {
-      console.debug('[subscription] periodic refresh');
-      this.restart();
-    }, REFRESH_INTERVAL);
   }
 
   restart(): void {
@@ -115,7 +103,6 @@ export class GiftWrapSubscriptionManager {
     this.processedWrapIds.clear();
     this.lastEventTimestamp = 0;
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
-    if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
   }
 
   isRunning(): boolean {
