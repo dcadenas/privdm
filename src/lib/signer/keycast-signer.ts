@@ -95,12 +95,14 @@ export async function startDivineOAuth(options?: { defaultRegister?: boolean }):
 
 interface TokenResponse {
   access_token?: string;
+  refresh_token?: string;
   authorization_handle?: string;
 }
 
 export interface OAuthResult {
   signer: NIP44Signer;
   accessToken: string;
+  refreshToken?: string;
 }
 
 export async function exchangeCodeForSigner(
@@ -150,7 +152,10 @@ export async function exchangeCodeForSigner(
   }
 
   return {
-    signer: new KeycastHttpSigner(data.access_token),
+    signer: new KeycastHttpSigner(data.access_token, {
+      refreshToken: data.refresh_token,
+    }),
     accessToken: data.access_token,
+    refreshToken: data.refresh_token,
   };
 }

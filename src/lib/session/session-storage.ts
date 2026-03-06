@@ -1,5 +1,5 @@
 export type StoredSession =
-  | { type: 'keycast'; accessToken: string }
+  | { type: 'keycast'; accessToken: string; refreshToken?: string }
   | { type: 'bunker'; bunkerUrl: string }
   | { type: 'nostrconnect'; clientNsec: string; bunkerUrl: string }
   | { type: 'extension' };
@@ -23,7 +23,11 @@ export function loadSession(): StoredSession | null {
     switch (obj.type) {
       case 'keycast':
         if (typeof obj.accessToken === 'string') {
-          return { type: 'keycast', accessToken: obj.accessToken };
+          return {
+            type: 'keycast',
+            accessToken: obj.accessToken,
+            ...(typeof obj.refreshToken === 'string' ? { refreshToken: obj.refreshToken } : {}),
+          };
         }
         return null;
       case 'bunker':

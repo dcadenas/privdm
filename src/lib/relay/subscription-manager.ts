@@ -87,7 +87,12 @@ export class GiftWrapSubscriptionManager {
 
   restart(): void {
     if (!this.startOptions) return;
-    // Use last event timestamp with overlap if available, otherwise fall back to 3-day window
+    const { pool, dmRelays } = this.startOptions;
+
+    // Force-close relay connections so the pool creates fresh WebSockets.
+    // After sleep/wake, existing connections are likely dead/zombie.
+    pool.close(dmRelays);
+
     const THREE_DAYS = 3 * 24 * 60 * 60;
     const since = this.lastEventTimestamp > 0
       ? this.lastEventTimestamp - RECONNECT_OVERLAP

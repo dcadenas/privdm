@@ -37,8 +37,8 @@ export function AuthCallback() {
       usedCodes.add(code);
 
       try {
-        const { signer, accessToken } = await exchangeCodeForSigner(code, state);
-        await login(signer, { type: 'keycast', accessToken });
+        const { signer, accessToken, refreshToken } = await exchangeCodeForSigner(code, state);
+        await login(signer, { type: 'keycast', accessToken, refreshToken });
         setStatus('success');
         window.history.replaceState({}, '', '/');
       } catch (err) {

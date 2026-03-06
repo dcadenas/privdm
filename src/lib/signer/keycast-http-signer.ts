@@ -13,17 +13,88 @@ export class KeycastAuthError extends Error {
   }
 }
 
+export interface TokenRefreshResult {
+  accessToken: string;
+  refreshToken: string;
+}
+
 export class KeycastHttpSigner implements NIP44Signer {
   readonly type: SignerType = 'keycast';
-  private readonly token: string;
+  private token: string;
+  private refreshToken: string | null;
+  private readonly clientId: string;
   private readonly apiUrl: string;
   private readonly fetchImpl: typeof fetch;
   private cachedPubkey: string | null = null;
+  private refreshPromise: Promise<void> | null = null;
+  onTokenRefresh: ((result: TokenRefreshResult) => void) | null = null;
 
-  constructor(token: string, apiUrl?: string, fetchImpl?: typeof fetch) {
+  constructor(token: string, options?: {
+    refreshToken?: string;
+    clientId?: string;
+    apiUrl?: string;
+    fetchImpl?: typeof fetch;
+  }) {
     this.token = token;
-    this.apiUrl = apiUrl ?? DEFAULT_KEYCAST_API;
-    this.fetchImpl = fetchImpl ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+    this.refreshToken = options?.refreshToken ?? null;
+    this.clientId = options?.clientId ?? 'privdm';
+    this.apiUrl = options?.apiUrl ?? DEFAULT_KEYCAST_API;
+    this.fetchImpl = options?.fetchImpl ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  }
+
+  private async tryRefreshToken(): Promise<boolean> {
+    if (!this.refreshToken) return false;
+
+    // Coalesce concurrent refresh attempts
+    if (this.refreshPromise) {
+      await this.refreshPromise;
+      return true;
+    }
+
+    try {
+      this.refreshPromise = this.doRefresh();
+      await this.refreshPromise;
+      return true;
+    } catch (e) {
+      console.warn('[keycast] Token refresh failed:', e);
+      return false;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  private async doRefresh(): Promise<void> {
+    const res = await this.fetchImpl(`${this.apiUrl}/api/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'refresh_token',
+        refresh_token: this.refreshToken,
+        client_id: this.clientId,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!res.ok) {
+      this.refreshToken = null;
+      throw new KeycastAuthError(res.status);
+    }
+
+    const data = (await res.json()) as {
+      access_token?: string;
+      refresh_token?: string;
+    };
+
+    if (!data.access_token) throw new Error('No access_token in refresh response');
+
+    this.token = data.access_token;
+    if (data.refresh_token) this.refreshToken = data.refresh_token;
+    this.cachedPubkey = null;
+
+    this.onTokenRefresh?.({
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token ?? this.refreshToken!,
+    });
   }
 
   private async rpc(method: string, params: unknown[]): Promise<unknown> {
@@ -48,6 +119,12 @@ export class KeycastHttpSigner implements NIP44Signer {
         );
         await new Promise((r) => setTimeout(r, delay));
         continue;
+      }
+
+      if ((res.status === 401 || res.status === 403) && attempt === 0) {
+        const refreshed = await this.tryRefreshToken();
+        if (refreshed) continue;
+        throw new KeycastAuthError(res.status);
       }
 
       if (!res.ok) {

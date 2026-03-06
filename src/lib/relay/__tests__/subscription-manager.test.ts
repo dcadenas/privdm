@@ -57,6 +57,7 @@ describe('GiftWrapSubscriptionManager', () => {
     // Mock pool that captures the onevent callback and calls it
     let onEvent: ((event: typeof bobWrap) => void) | undefined;
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn((_relays, _filters, opts) => {
         onEvent = opts.onevent;
         return { close: vi.fn() };
@@ -113,6 +114,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
     let onEvent: ((event: typeof bobWrap) => void) | undefined;
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn((_relays, _filters, opts) => {
         onEvent = opts.onevent;
         return { close: vi.fn() };
@@ -158,6 +160,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
     let onEvent: ((event: (typeof wraps1)[0]) => void) | undefined;
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn((_relays, _filters, opts) => {
         onEvent = opts.onevent;
         return { close: vi.fn() };
@@ -193,6 +196,7 @@ describe('GiftWrapSubscriptionManager', () => {
   it('stop() closes the subscription', () => {
     const closeFn = vi.fn();
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn(() => ({ close: closeFn })),
     };
 
@@ -215,6 +219,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
   it('isRunning() returns true after start', () => {
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn(() => ({ close: vi.fn() })),
     };
     manager.start({
@@ -229,6 +234,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
   it('isRunning() returns false after stop', () => {
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn(() => ({ close: vi.fn() })),
     };
     manager.start({
@@ -249,6 +255,7 @@ describe('GiftWrapSubscriptionManager', () => {
     const closeFn = vi.fn();
     let onEvent: ((event: unknown) => void) | undefined;
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn((_relays: string[], _filters: unknown, opts: { onevent: (event: unknown) => void }) => {
         onEvent = opts.onevent;
         return { close: closeFn };
@@ -306,6 +313,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
     let onEvent: ((event: (typeof wraps)[0]) => void) | undefined;
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn((_relays, _filters, opts) => {
         onEvent = opts.onevent;
         return { close: vi.fn() };
@@ -335,6 +343,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
   it('passes since filter to subscribeMany when provided', () => {
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn(() => ({ close: vi.fn() })),
     };
 
@@ -356,6 +365,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
   it('omits since filter when not provided', () => {
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn(() => ({ close: vi.fn() })),
     };
 
@@ -390,6 +400,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
     let onEvent: ((event: typeof bobWrap) => void) | undefined;
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn((_relays, _filters, opts) => {
         onEvent = opts.onevent;
         return { close: vi.fn() };
@@ -428,6 +439,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
     let onEvent: ((event: typeof bobWrap) => void) | undefined;
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn((_relays, _filters, opts) => {
         onEvent = opts.onevent;
         return { close: vi.fn() };
@@ -474,6 +486,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
     let onEvent: ((event: typeof bobWrap) => void) | undefined;
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn((_relays, _filters, opts) => {
         onEvent = opts.onevent;
         return { close: vi.fn() };
@@ -517,6 +530,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
     let onEvent: ((event: typeof bobWrap) => void) | undefined;
     const mockPool = {
+      close: vi.fn(),
       subscribeMany: vi.fn((_relays, _filters, opts) => {
         onEvent = opts.onevent;
         return { close: vi.fn() };

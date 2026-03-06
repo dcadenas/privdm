@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect, u
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NIP44Signer } from '@/lib/signer/types';
+import { KeycastHttpSigner } from '@/lib/signer/keycast-http-signer';
 import type { StoredSession } from '@/lib/session/session-storage';
 import {
   saveSession,
@@ -50,6 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session) {
       saveSession(session);
     }
+
+    // Auto-persist refreshed tokens for keycast sessions
+    if (signer instanceof KeycastHttpSigner) {
+      signer.onTokenRefresh = ({ accessToken, refreshToken }) => {
+        saveSession({ type: 'keycast', accessToken, refreshToken });
+      };
+    }
+
     setPoolAuth(signer);
     setState({ signer, pubkey });
   }, [queryClient]);

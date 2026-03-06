@@ -8,7 +8,9 @@ import type { StoredSession } from './session-storage';
 export async function restoreSession(session: StoredSession): Promise<NIP44Signer> {
   switch (session.type) {
     case 'keycast':
-      return new KeycastHttpSigner(session.accessToken);
+      return new KeycastHttpSigner(session.accessToken, {
+        refreshToken: session.refreshToken,
+      });
     case 'extension':
       return new ExtensionSigner();
     case 'bunker':
