@@ -2,6 +2,7 @@ import { restoreSession } from '../restore-session';
 import { KeycastHttpSigner } from '@/lib/signer/keycast-http-signer';
 import { ExtensionSigner } from '@/lib/signer/extension-signer';
 import { BunkerNIP44Signer } from '@/lib/signer/bunker-signer';
+import { NsecSigner } from '@/lib/signer/nsec-signer';
 import { generateSecretKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
 
@@ -51,6 +52,14 @@ describe('restoreSession', () => {
       clientKey,
       bunkerUrl,
     );
+  });
+
+  it('creates NsecSigner for nsec session', async () => {
+    const sk = generateSecretKey();
+    const nsec = nip19.nsecEncode(sk);
+    const signer = await restoreSession({ type: 'nsec', nsec });
+    expect(signer).toBeInstanceOf(NsecSigner);
+    expect(signer.type).toBe('nsec');
   });
 
   it('throws for invalid nsec in nostrconnect session', async () => {

@@ -55,8 +55,9 @@ export function LoginScreen() {
     try {
       switch (method) {
         case 'nsec': {
-          const signer = new NsecSigner(nsec.trim());
-          await login(signer); // nsec not persisted — too dangerous
+          const trimmed = nsec.trim();
+          const signer = new NsecSigner(trimmed);
+          await login(signer, { type: 'nsec', nsec: trimmed });
           break;
         }
         case 'extension': {

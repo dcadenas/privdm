@@ -2,8 +2,8 @@ export type StoredSession =
   | { type: 'keycast'; accessToken: string; refreshToken?: string }
   | { type: 'bunker'; bunkerUrl: string }
   | { type: 'nostrconnect'; clientNsec: string; bunkerUrl: string }
-  | { type: 'extension' };
-// nsec intentionally excluded — too dangerous to persist
+  | { type: 'extension' }
+  | { type: 'nsec'; nsec: string };
 
 const SESSION_KEY = 'nostr_dm_session';
 const AUTH_HANDLE_KEY = 'nostr_dm_auth_handle';
@@ -42,6 +42,11 @@ export function loadSession(): StoredSession | null {
         return null;
       case 'extension':
         return { type: 'extension' };
+      case 'nsec':
+        if (typeof obj.nsec === 'string') {
+          return { type: 'nsec', nsec: obj.nsec };
+        }
+        return null;
       default:
         return null;
     }

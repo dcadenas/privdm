@@ -48,6 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     localStorage.setItem(LAST_PUBKEY_KEY, pubkey);
 
+    // Clear any previous session (defensive — ensures nsec doesn't linger
+    // when switching to a different auth method)
+    clearSession();
     if (session) {
       saveSession(session);
     }

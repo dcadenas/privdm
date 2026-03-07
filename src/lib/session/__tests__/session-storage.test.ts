@@ -51,8 +51,19 @@ describe('session-storage', () => {
       expect(loadSession()).toBeNull();
     });
 
+    it('round-trips an nsec session', () => {
+      const session: StoredSession = { type: 'nsec', nsec: 'nsec1test' };
+      saveSession(session);
+      expect(loadSession()).toEqual(session);
+    });
+
     it('returns null for unknown session type', () => {
-      localStorage.setItem('nostr_dm_session', JSON.stringify({ type: 'nsec', nsec: 'secret' }));
+      localStorage.setItem('nostr_dm_session', JSON.stringify({ type: 'magic', key: 'secret' }));
+      expect(loadSession()).toBeNull();
+    });
+
+    it('returns null for nsec session missing nsec field', () => {
+      localStorage.setItem('nostr_dm_session', JSON.stringify({ type: 'nsec' }));
       expect(loadSession()).toBeNull();
     });
 
