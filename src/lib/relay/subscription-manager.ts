@@ -31,6 +31,7 @@ export class GiftWrapSubscriptionManager {
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
   private lastEventTimestamp = 0;
   private stopped = false;
+  private restarting = false;
 
   seedProcessedWrapIds(ids: Set<string>): void {
     for (const id of ids) {
@@ -39,12 +40,15 @@ export class GiftWrapSubscriptionManager {
   }
 
   start(options: StartOptions): void {
-    // Close existing sub and clear queue, but keep processedWrapIds
+    // Close existing sub and clear queue, but keep processedWrapIds.
+    // Set restarting flag so the onclose handler doesn't schedule another restart.
+    this.restarting = true;
     this.sub?.close();
     this.sub = null;
     this.queue = [];
     this.stopped = false;
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
+    this.restarting = false;
 
     this.startOptions = options;
     const { pool, userPubkey, dmRelays, signer, queryClient, store, since } = options;
@@ -66,7 +70,7 @@ export class GiftWrapSubscriptionManager {
           void this.processQueue(signer, queryClient, store);
         },
         onclose: (reasons: string[]) => {
-          if (this.stopped) return;
+          if (this.stopped || this.restarting) return;
 
           let rateLimited = false;
           for (const reason of reasons) {
