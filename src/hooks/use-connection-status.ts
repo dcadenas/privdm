@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+// Force-reconnect if tab was hidden longer than this (catches half-open TCP)
+const STALE_THRESHOLD_MS = 30_000;
+
 export interface ConnectionStatus {
   isConnected: boolean;
   isReconnecting: boolean;
@@ -11,6 +14,7 @@ export function useConnectionStatus(onReconnect?: () => void): ConnectionStatus 
   const [isReconnecting, setIsReconnecting] = useState(false);
   const onReconnectRef = useRef(onReconnect);
   onReconnectRef.current = onReconnect;
+  const hiddenAtRef = useRef<number | null>(null);
 
   const doReconnect = useCallback(() => {
     setIsReconnecting(true);
@@ -25,10 +29,17 @@ export function useConnectionStatus(onReconnect?: () => void): ConnectionStatus 
     const handleOnline = () => doReconnect();
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Always restart subscription when tab becomes visible.
-        // Browsers throttle/kill WebSocket connections in backgrounded tabs,
-        // so we may have missed events.
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
+
+      // Tab became visible — reconnect if hidden long enough for connections to go stale
+      const hiddenAt = hiddenAtRef.current;
+      hiddenAtRef.current = null;
+
+      if (hiddenAt && Date.now() - hiddenAt >= STALE_THRESHOLD_MS) {
+        console.debug(`[connection] tab was hidden for ${Math.round((Date.now() - hiddenAt) / 1000)}s, forcing reconnect`);
         doReconnect();
       }
     };

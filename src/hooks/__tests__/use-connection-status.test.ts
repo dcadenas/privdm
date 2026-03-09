@@ -7,9 +7,11 @@ describe('useConnectionStatus', () => {
   beforeEach(() => {
     visibilityState = 'visible';
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibilityState);
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -46,37 +48,52 @@ describe('useConnectionStatus', () => {
     expect(result.current.isConnected).toBe(true);
   });
 
-  it('calls onReconnect when tab becomes visible after being hidden', () => {
+  it('reconnects when tab was hidden longer than stale threshold', () => {
     const onReconnect = vi.fn();
-    const { result } = renderHook(() => useConnectionStatus(onReconnect));
+    renderHook(() => useConnectionStatus(onReconnect));
 
-    // Simulate tab hidden → disconnected
+    // Hide tab
     act(() => {
       visibilityState = 'hidden';
-      window.dispatchEvent(new Event('offline'));
+      document.dispatchEvent(new Event('visibilitychange'));
     });
-    expect(result.current.isConnected).toBe(false);
 
-    // Tab becomes visible again
+    // Advance past stale threshold (30s)
+    act(() => {
+      vi.advanceTimersByTime(31_000);
+    });
+
+    // Show tab
     act(() => {
       visibilityState = 'visible';
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
     expect(onReconnect).toHaveBeenCalledTimes(1);
-    expect(result.current.isConnected).toBe(true);
   });
 
-  it('calls onReconnect on visibilitychange even if already connected', () => {
+  it('does not reconnect when tab was hidden briefly', () => {
     const onReconnect = vi.fn();
     renderHook(() => useConnectionStatus(onReconnect));
 
-    // Tab becomes visible — always reconnect to catch up after background throttling
+    // Hide tab
     act(() => {
+      visibilityState = 'hidden';
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    expect(onReconnect).toHaveBeenCalledTimes(1);
+    // Only 5s — below threshold
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    // Show tab
+    act(() => {
+      visibilityState = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    expect(onReconnect).not.toHaveBeenCalled();
   });
 
   it('manual reconnect() triggers onReconnect and restores state', () => {

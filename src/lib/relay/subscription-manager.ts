@@ -19,8 +19,9 @@ export interface StartOptions {
   since?: number;
 }
 
-const RATE_LIMIT_RESTART_DELAY = 5_000;
-const RECONNECT_DELAY = 3_000;
+const RECONNECT_BASE_DELAY = 5_000;
+const RECONNECT_MAX_DELAY = 60_000;
+const RECONNECT_MAX_ATTEMPTS = 10;
 const RECONNECT_OVERLAP = 30; // seconds of overlap when resubscribing
 export class GiftWrapSubscriptionManager {
   private sub: SubCloser | null = null;
@@ -32,6 +33,7 @@ export class GiftWrapSubscriptionManager {
   private lastEventTimestamp = 0;
   private stopped = false;
   private restarting = false;
+  private reconnectAttempts = 0;
 
   seedProcessedWrapIds(ids: Set<string>): void {
     for (const id of ids) {
@@ -58,6 +60,7 @@ export class GiftWrapSubscriptionManager {
       filter.since = since;
     }
 
+    this.reconnectAttempts = 0;
     console.debug('[subscription] starting, since:', since ? new Date(since * 1000).toISOString() : 'none');
 
     this.sub = pool.subscribeMany(
@@ -65,6 +68,7 @@ export class GiftWrapSubscriptionManager {
       filter,
       {
         onevent: (event: Event) => {
+          this.reconnectAttempts = 0;
           this.lastEventTimestamp = Math.max(this.lastEventTimestamp, event.created_at);
           this.queue.push(event);
           void this.processQueue(signer, queryClient, store);
@@ -80,10 +84,19 @@ export class GiftWrapSubscriptionManager {
             }
           }
 
-          // Auto-restart on any close (persistent subscription loop)
-          const delay = rateLimited ? RATE_LIMIT_RESTART_DELAY : RECONNECT_DELAY;
-          console.log(`[subscription] closed, restarting in ${delay}ms`);
-          this.restartTimer = setTimeout(() => this.restart(), delay);
+          if (this.reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
+            console.warn('[subscription] max reconnect attempts reached, giving up');
+            return;
+          }
+
+          // Exponential backoff: 5s, 10s, 20s, 40s, 60s, 60s, ...
+          const backoff = Math.min(
+            RECONNECT_BASE_DELAY * Math.pow(2, this.reconnectAttempts),
+            RECONNECT_MAX_DELAY,
+          );
+          this.reconnectAttempts++;
+          console.log(`[subscription] closed, restarting in ${backoff}ms (attempt ${this.reconnectAttempts}/${RECONNECT_MAX_ATTEMPTS})`);
+          this.restartTimer = setTimeout(() => this.restart(), backoff);
         },
       } as never,
     );
@@ -91,6 +104,7 @@ export class GiftWrapSubscriptionManager {
 
   restart(): void {
     if (!this.startOptions) return;
+    this.reconnectAttempts = 0;
     const { pool, dmRelays } = this.startOptions;
 
     // Force-close relay connections so the pool creates fresh WebSockets.
