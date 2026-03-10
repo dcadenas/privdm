@@ -76,11 +76,9 @@ export class GiftWrapSubscriptionManager {
         onclose: (reasons: string[]) => {
           if (this.stopped || this.restarting) return;
 
-          let rateLimited = false;
           for (const reason of reasons) {
             if (reason) {
               console.warn('[subscription] relay closed subscription:', reason);
-              if (reason.startsWith('rate-limited:')) rateLimited = true;
             }
           }
 
