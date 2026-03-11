@@ -24,9 +24,15 @@ export function useConnectionStatus(onReconnect?: () => void): ConnectionStatus 
   }, []);
 
   useEffect(() => {
-    const handleOffline = () => setIsConnected(false);
+    const handleOffline = () => {
+      console.log('[connection] browser went offline');
+      setIsConnected(false);
+    };
 
-    const handleOnline = () => doReconnect();
+    const handleOnline = () => {
+      console.log('[connection] browser came online, reconnecting');
+      doReconnect();
+    };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {

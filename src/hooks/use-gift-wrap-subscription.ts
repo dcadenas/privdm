@@ -35,12 +35,20 @@ export function useGiftWrapSubscription(): ConnectionStatus {
     let cancelled = false;
 
     async function hydrate() {
+      console.log('[hydrate] starting IndexedDB load');
+      const t0 = performance.now();
       const [conversations, readStateMap, profiles] = await Promise.all([
         messageStore.loadConversations(),
         readStateStore.getAll(),
         profileStore.getAll(),
       ]);
       if (cancelled) return;
+      console.log('[hydrate] loaded from IndexedDB', {
+        conversations: conversations.length,
+        readStates: Object.keys(readStateMap).length,
+        profiles: profiles.length,
+        elapsed: `${Math.round(performance.now() - t0)}ms`,
+      });
 
       if (Object.keys(readStateMap).length > 0) {
         queryClient.setQueryData(QUERY_KEYS.readState, readStateMap);
@@ -70,7 +78,10 @@ export function useGiftWrapSubscription(): ConnectionStatus {
         );
       }
 
-      if (!cancelled) setHydrated(true);
+      if (!cancelled) {
+        console.log('[hydrate] complete');
+        setHydrated(true);
+      }
     }
 
     hydrate();
@@ -86,6 +97,7 @@ export function useGiftWrapSubscription(): ConnectionStatus {
     const abortController = new AbortController();
 
     async function startWithStore() {
+      console.log('[subscription] preparing to start', { relays: dmRelays });
       const wrapIds = await messageStore.getWrapIds();
       // NIP-17 randomizes wrap timestamps up to 2 days in the past.
       // Use 3-day window (2d randomization + 1d safety margin).
