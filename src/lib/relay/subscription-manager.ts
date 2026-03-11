@@ -94,15 +94,19 @@ export class GiftWrapSubscriptionManager {
           );
           this.reconnectAttempts++;
           console.log(`[subscription] closed, restarting in ${backoff}ms (attempt ${this.reconnectAttempts}/${RECONNECT_MAX_ATTEMPTS})`);
-          this.restartTimer = setTimeout(() => this.restart(), backoff);
+          this.restartTimer = setTimeout(() => this.reconnectRestart(false), backoff);
         },
       } as never,
     );
   }
 
   restart(): void {
+    this.reconnectRestart(true);
+  }
+
+  private reconnectRestart(resetAttempts: boolean): void {
     if (!this.startOptions) return;
-    this.reconnectAttempts = 0;
+    const savedAttempts = this.reconnectAttempts;
     const { pool, dmRelays } = this.startOptions;
 
     // Force-close relay connections so the pool creates fresh WebSockets.
@@ -114,6 +118,11 @@ export class GiftWrapSubscriptionManager {
       ? this.lastEventTimestamp - RECONNECT_OVERLAP
       : Math.floor(Date.now() / 1000) - THREE_DAYS;
     this.start({ ...this.startOptions, since });
+
+    // start() resets reconnectAttempts to 0; restore if this is an auto-reconnect
+    if (!resetAttempts) {
+      this.reconnectAttempts = savedAttempts;
+    }
   }
 
   stop(): void {
