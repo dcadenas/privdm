@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect, u
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NostrSigner, StoredSession } from 'divine-signer';
-import { KeycastHttpSigner, createSessionStore, restoreSession } from 'divine-signer';
+import { OAuthSigner, createSessionStore, restoreSession } from 'divine-signer';
 import { oauthStorage } from '@/lib/auth/oauth-storage';
 import { messageStore } from '@/lib/storage/singleton';
 import { setPoolAuth, clearPoolAuth } from '@/lib/relay/pool';
@@ -50,9 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Auto-persist refreshed tokens for keycast sessions
-    if (signer instanceof KeycastHttpSigner) {
+    if (signer instanceof OAuthSigner) {
       signer.onTokenRefresh = ({ accessToken, refreshToken }) => {
-        sessionStore.save({ type: 'keycast', accessToken, refreshToken });
+        sessionStore.save({ type: 'oauth', accessToken, refreshToken });
       };
     }
 

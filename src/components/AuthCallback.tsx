@@ -49,7 +49,7 @@ export function AuthCallback() {
 
       try {
         const { signer, accessToken, refreshToken } = await exchangeCode(code, state, getOAuthConfig());
-        await login(signer, { type: 'keycast', accessToken, refreshToken });
+        await login(signer, { type: 'oauth', accessToken, refreshToken });
         setStatus('success');
         window.history.replaceState({}, '', '/');
       } catch (err) {
