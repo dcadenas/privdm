@@ -1,8 +1,8 @@
 import { SimplePool } from 'nostr-tools/pool';
-import type { NIP44Signer } from 'divine-signer';
+import type { NostrSigner } from 'divine-signer';
 
 let pool: SimplePool | null = null;
-let currentSigner: NIP44Signer | null = null;
+let currentSigner: NostrSigner | null = null;
 
 export function getPool(): SimplePool {
   if (!pool) {
@@ -16,7 +16,7 @@ export function getPool(): SimplePool {
   return pool;
 }
 
-export function setPoolAuth(signer: NIP44Signer): void {
+export function setPoolAuth(signer: NostrSigner): void {
   currentSigner = signer;
 }
 

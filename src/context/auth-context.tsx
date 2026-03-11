@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { NIP44Signer, StoredSession } from 'divine-signer';
+import type { NostrSigner, StoredSession } from 'divine-signer';
 import { KeycastHttpSigner, createSessionStore, restoreSession } from 'divine-signer';
 import { oauthStorage } from '@/lib/auth/oauth-storage';
 import { messageStore } from '@/lib/storage/singleton';
@@ -11,16 +11,16 @@ const sessionStore = createSessionStore(localStorage, 'nostr_dm');
 const LAST_PUBKEY_KEY = 'privdm:lastPubkey';
 
 interface AuthState {
-  signer: NIP44Signer | null;
+  signer: NostrSigner | null;
   pubkey: string | null;
 }
 
 interface AuthContextValue {
-  signer: NIP44Signer | null;
+  signer: NostrSigner | null;
   pubkey: string | null;
   isAuthenticated: boolean;
   isRestoring: boolean;
-  login: (signer: NIP44Signer, session?: StoredSession) => Promise<void>;
+  login: (signer: NostrSigner, session?: StoredSession) => Promise<void>;
   logout: () => void;
 }
 
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const restoredRef = useRef(false);
   const queryClient = useQueryClient();
 
-  const login = useCallback(async (signer: NIP44Signer, session?: StoredSession) => {
+  const login = useCallback(async (signer: NostrSigner, session?: StoredSession) => {
     const pubkey = await signer.getPublicKey();
 
     const lastPubkey = localStorage.getItem(LAST_PUBKEY_KEY);

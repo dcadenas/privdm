@@ -1,9 +1,9 @@
 import type { SimplePool } from 'nostr-tools/pool';
-import type { NIP44Signer } from 'divine-signer';
+import type { NostrSigner } from 'divine-signer';
 import { normalizeRelayUrl } from './dm-relays';
 
 export async function publishDMRelayList(
-  signer: NIP44Signer,
+  signer: NostrSigner,
   pool: SimplePool,
   relays: string[],
   broadcastRelays: string[],

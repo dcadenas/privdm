@@ -3,7 +3,7 @@ import type { Filter } from 'nostr-tools/filter';
 import type { SubCloser } from 'nostr-tools/abstract-pool';
 import type { SimplePool } from 'nostr-tools/pool';
 import type { QueryClient } from '@tanstack/react-query';
-import type { NIP44Signer } from 'divine-signer';
+import type { NostrSigner } from 'divine-signer';
 import type { MessageStore } from '../storage/message-store';
 import { unwrapGiftWrap } from '../nip17/unwrap';
 import type { DecryptedMessage, Conversation } from './types';
@@ -13,7 +13,7 @@ export interface StartOptions {
   pool: SimplePool;
   userPubkey: string;
   dmRelays: string[];
-  signer: NIP44Signer;
+  signer: NostrSigner;
   queryClient: QueryClient;
   store?: MessageStore;
   since?: number;
@@ -135,7 +135,7 @@ export class GiftWrapSubscriptionManager {
   }
 
   private async processQueue(
-    signer: NIP44Signer,
+    signer: NostrSigner,
     queryClient: QueryClient,
     store?: MessageStore,
   ): Promise<void> {

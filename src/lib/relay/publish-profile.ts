@@ -1,5 +1,5 @@
 import type { SimplePool } from 'nostr-tools/pool';
-import type { NIP44Signer } from 'divine-signer';
+import type { NostrSigner } from 'divine-signer';
 
 export interface RawProfile {
   rawJson: Record<string, unknown>;
@@ -43,7 +43,7 @@ const FIELD_TO_JSON: Record<string, string> = {
 };
 
 export async function publishProfile(
-  signer: NIP44Signer,
+  signer: NostrSigner,
   pool: SimplePool,
   update: ProfileUpdate,
   existingRaw: Record<string, unknown> | null,

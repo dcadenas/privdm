@@ -4,15 +4,17 @@ import {
   createReadStateEventTemplate,
   readStateFilter,
 } from '../nip78-read-state';
-import type { NIP44Signer } from 'divine-signer';
+import type { NostrSigner } from 'divine-signer';
 import type { ReadStateMap } from '@/lib/storage/read-state-store';
 
 // Simple mock signer that uses base64 as "encryption"
-function makeMockSigner(): NIP44Signer {
+function makeMockSigner(): NostrSigner {
   return {
     type: 'nsec',
     getPublicKey: async () => 'deadbeef',
     signEvent: vi.fn(),
+    nip04Encrypt: async (_pubkey: string, plaintext: string) => btoa(plaintext),
+    nip04Decrypt: async (_pubkey: string, ciphertext: string) => atob(ciphertext),
     nip44Encrypt: async (_pubkey: string, plaintext: string) => btoa(plaintext),
     nip44Decrypt: async (_pubkey: string, ciphertext: string) => atob(ciphertext),
   };

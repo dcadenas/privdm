@@ -1,10 +1,10 @@
 import type { VerifiedEvent } from 'nostr-tools/pure';
-import type { NIP44Signer } from 'divine-signer';
+import type { NostrSigner } from 'divine-signer';
 import { randomPastTimestamp } from './timestamp';
 import type { Rumor } from './types';
 
 export async function createSeal(
-  signer: NIP44Signer,
+  signer: NostrSigner,
   rumor: Rumor,
   recipientPubkey: string,
 ): Promise<VerifiedEvent> {

@@ -1,13 +1,13 @@
 import type { EventTemplate } from 'nostr-tools/pure';
 import type { Filter } from 'nostr-tools/filter';
-import type { NIP44Signer } from 'divine-signer';
+import type { NostrSigner } from 'divine-signer';
 import type { ReadStateMap } from '@/lib/storage/read-state-store';
 
 const D_TAG = 'privdm/read-state';
 const KIND_APP_DATA = 30078;
 
 export async function encryptReadState(
-  signer: NIP44Signer,
+  signer: NostrSigner,
   myPubkey: string,
   readState: ReadStateMap,
 ): Promise<string> {
@@ -16,7 +16,7 @@ export async function encryptReadState(
 }
 
 export async function decryptReadState(
-  signer: NIP44Signer,
+  signer: NostrSigner,
   myPubkey: string,
   ciphertext: string,
 ): Promise<ReadStateMap> {

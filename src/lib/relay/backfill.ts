@@ -2,7 +2,7 @@ import type { Event, VerifiedEvent } from 'nostr-tools/pure';
 import type { Filter } from 'nostr-tools/filter';
 import type { SimplePool } from 'nostr-tools/pool';
 import type { QueryClient } from '@tanstack/react-query';
-import type { NIP44Signer } from 'divine-signer';
+import type { NostrSigner } from 'divine-signer';
 import type { MessageStore } from '../storage/message-store';
 import type { DecryptedMessage } from './types';
 import { unwrapGiftWrap } from '../nip17/unwrap';
@@ -65,7 +65,7 @@ export interface BackfillOptions {
   pool: SimplePool;
   userPubkey: string;
   dmRelays: string[];
-  signer: NIP44Signer;
+  signer: NostrSigner;
   queryClient: QueryClient;
   store: MessageStore;
   processedWrapIds: Set<string>;
@@ -80,7 +80,7 @@ export interface BackfillResult {
 
 async function processEvent(
   event: { id: string; pubkey: string; created_at: number; kind: number; tags: string[][]; content: string; sig: string },
-  signer: NIP44Signer,
+  signer: NostrSigner,
   queryClient: QueryClient,
   store: MessageStore,
 ): Promise<boolean> {

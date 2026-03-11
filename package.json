@@ -14,9 +14,9 @@
   },
   "dependencies": {
     "@noble/hashes": "^1.7.1",
-    "divine-signer": "github:dcadenas/divine-signer",
     "@tanstack/react-query": "^5.62.0",
     "dexie": "^4.3.0",
+    "divine-signer": "github:dcadenas/divine-signer",
     "micromark": "^4.0.2",
     "micromark-extension-gfm-strikethrough": "^2.1.0",
     "nostr-tools": "^2.23.0",

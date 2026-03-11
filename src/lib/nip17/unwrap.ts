@@ -1,10 +1,10 @@
 import { verifyEvent, type VerifiedEvent } from 'nostr-tools/pure';
-import type { NIP44Signer } from 'divine-signer';
+import type { NostrSigner } from 'divine-signer';
 import { getConversationId } from './conversation';
 import type { Rumor, UnwrappedMessage } from './types';
 
 export async function unwrapGiftWrap(
-  signer: NIP44Signer,
+  signer: NostrSigner,
   giftWrap: VerifiedEvent,
 ): Promise<UnwrappedMessage> {
   // Step 1: Decrypt the gift wrap to get the seal
