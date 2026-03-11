@@ -4,7 +4,7 @@ import {
   createReadStateEventTemplate,
   readStateFilter,
 } from '../nip78-read-state';
-import type { NIP44Signer } from '@/lib/signer/types';
+import type { NIP44Signer } from 'divine-signer';
 import type { ReadStateMap } from '@/lib/storage/read-state-store';
 
 // Simple mock signer that uses base64 as "encryption"

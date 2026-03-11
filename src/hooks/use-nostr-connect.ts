@@ -3,9 +3,9 @@ import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
 import { createNostrConnectURI } from 'nostr-tools/nip46';
 import QRCode from 'qrcode';
-import { BunkerNIP44Signer } from '@/lib/signer/bunker-signer';
+import { BunkerNIP44Signer } from 'divine-signer';
+import type { StoredSession } from 'divine-signer';
 import { DEFAULT_METADATA_RELAYS } from '@/lib/relay/defaults';
-import type { StoredSession } from '@/lib/session/session-storage';
 
 export type NostrConnectStatus = 'idle' | 'generating' | 'waiting' | 'connected' | 'logging-in' | 'error' | 'timeout';
 

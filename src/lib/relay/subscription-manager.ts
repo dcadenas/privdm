@@ -3,7 +3,7 @@ import type { Filter } from 'nostr-tools/filter';
 import type { SubCloser } from 'nostr-tools/abstract-pool';
 import type { SimplePool } from 'nostr-tools/pool';
 import type { QueryClient } from '@tanstack/react-query';
-import type { NIP44Signer } from '../signer/types';
+import type { NIP44Signer } from 'divine-signer';
 import type { MessageStore } from '../storage/message-store';
 import { unwrapGiftWrap } from '../nip17/unwrap';
 import type { DecryptedMessage, Conversation } from './types';

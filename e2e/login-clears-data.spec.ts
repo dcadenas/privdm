@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { generateUser, loginWithNsec } from './helpers';
+import { generateUser, loginWithNsec, logout } from './helpers';
 
 test.describe('Login clears previous user data', () => {
   test('new login without logout clears previous user conversations', async ({ page }) => {
@@ -18,11 +18,9 @@ test.describe('Login clears previous user data', () => {
     await page.getByTestId('send-button').click();
     await expect(page.getByTestId('message-list')).toContainText(message);
 
-    // Simulate: User A closes the tab without logging out
-    // (nsec sessions are not persisted, so a reload shows the login screen)
-    await page.reload();
+    // User A logs out, then User B logs in on the same browser (same IndexedDB)
+    await logout(page);
 
-    // User B logs in on the same browser (same IndexedDB)
     await loginWithNsec(page, userB.nsec);
 
     // User B should NOT see User A's conversation

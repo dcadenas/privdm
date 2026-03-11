@@ -1,5 +1,5 @@
 import { SimplePool } from 'nostr-tools/pool';
-import type { NIP44Signer } from '@/lib/signer/types';
+import type { NIP44Signer } from 'divine-signer';
 
 let pool: SimplePool | null = null;
 let currentSigner: NIP44Signer | null = null;

@@ -1,5 +1,5 @@
 import { verifyEvent, type VerifiedEvent } from 'nostr-tools/pure';
-import type { NIP44Signer } from '../signer/types';
+import type { NIP44Signer } from 'divine-signer';
 import { getConversationId } from './conversation';
 import type { Rumor, UnwrappedMessage } from './types';
 

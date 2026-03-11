@@ -2,7 +2,7 @@ import type { Event, VerifiedEvent } from 'nostr-tools/pure';
 import type { Filter } from 'nostr-tools/filter';
 import type { SimplePool } from 'nostr-tools/pool';
 import type { QueryClient } from '@tanstack/react-query';
-import type { NIP44Signer } from '../signer/types';
+import type { NIP44Signer } from 'divine-signer';
 import type { MessageStore } from '../storage/message-store';
 import type { DecryptedMessage } from './types';
 import { unwrapGiftWrap } from '../nip17/unwrap';

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { generateSecretKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
-import { NsecSigner } from '@/lib/signer/nsec-signer';
+import { NsecSigner } from 'divine-signer';
 import { publishDMRelayList } from '../publish-dm-relays';
 
 function makeSigner() {

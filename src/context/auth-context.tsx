@@ -1,19 +1,13 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { NIP44Signer } from '@/lib/signer/types';
-import { KeycastHttpSigner } from '@/lib/signer/keycast-http-signer';
-import type { StoredSession } from '@/lib/session/session-storage';
-import {
-  saveSession,
-  loadSession,
-  clearSession,
-  clearAuthorizationHandle,
-} from '@/lib/session/session-storage';
-import { restoreSession } from '@/lib/session/restore-session';
+import type { NIP44Signer, StoredSession } from 'divine-signer';
+import { KeycastHttpSigner, createSessionStore, restoreSession } from 'divine-signer';
+import { oauthStorage } from '@/lib/auth/oauth-storage';
 import { messageStore } from '@/lib/storage/singleton';
 import { setPoolAuth, clearPoolAuth } from '@/lib/relay/pool';
 
+const sessionStore = createSessionStore(localStorage, 'nostr_dm');
 const LAST_PUBKEY_KEY = 'privdm:lastPubkey';
 
 interface AuthState {
@@ -50,15 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Clear any previous session (defensive — ensures nsec doesn't linger
     // when switching to a different auth method)
-    clearSession();
+    sessionStore.clear();
     if (session) {
-      saveSession(session);
+      sessionStore.save(session);
     }
 
     // Auto-persist refreshed tokens for keycast sessions
     if (signer instanceof KeycastHttpSigner) {
       signer.onTokenRefresh = ({ accessToken, refreshToken }) => {
-        saveSession({ type: 'keycast', accessToken, refreshToken });
+        sessionStore.save({ type: 'keycast', accessToken, refreshToken });
       };
     }
 
@@ -68,8 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setState({ signer: null, pubkey: null });
-    clearSession();
-    clearAuthorizationHandle();
+    sessionStore.clear();
+    oauthStorage.clearAuthorizationHandle();
     clearPoolAuth();
     queryClient.clear();
     void messageStore.clear();
@@ -82,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function restore() {
       try {
-        const stored = loadSession();
+        const stored = sessionStore.load();
         if (!stored) return;
 
         const signer = await Promise.race([
@@ -96,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ]);
         await login(signer, stored);
       } catch {
-        clearSession();
+        sessionStore.clear();
       } finally {
         setIsRestoring(false);
       }

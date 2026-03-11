@@ -1,5 +1,5 @@
 import type { VerifiedEvent } from 'nostr-tools/pure';
-import type { NIP44Signer } from '../signer/types';
+import type { NIP44Signer } from 'divine-signer';
 import { randomPastTimestamp } from './timestamp';
 import type { Rumor } from './types';
 

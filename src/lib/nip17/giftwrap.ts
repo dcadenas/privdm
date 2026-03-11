@@ -4,7 +4,7 @@ import {
   type VerifiedEvent,
 } from 'nostr-tools/pure';
 import * as nip44 from 'nostr-tools/nip44';
-import type { NIP44Signer } from '../signer/types';
+import type { NIP44Signer } from 'divine-signer';
 import { randomPastTimestamp } from './timestamp';
 import { createRumor } from './rumor';
 import { createSeal } from './seal';

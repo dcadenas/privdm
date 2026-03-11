@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { exchangeCodeForSigner, clearOAuthState } from '@/lib/signer/keycast-signer';
+import { exchangeCode } from 'divine-signer';
+import type { OAuthConfig } from 'divine-signer';
+import { oauthStorage } from '@/lib/auth/oauth-storage';
 
 // Prevent double-execution from React StrictMode (codes are single-use)
 const usedCodes = new Set<string>();
+
+function getOAuthConfig(): OAuthConfig {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+  return {
+    clientId: 'privdm',
+    redirectUri: `${origin}/auth/callback`,
+    storage: oauthStorage,
+  };
+}
 
 export function AuthCallback() {
   const { login } = useAuth();
@@ -37,14 +48,14 @@ export function AuthCallback() {
       usedCodes.add(code);
 
       try {
-        const { signer, accessToken, refreshToken } = await exchangeCodeForSigner(code, state);
+        const { signer, accessToken, refreshToken } = await exchangeCode(code, state, getOAuthConfig());
         await login(signer, { type: 'keycast', accessToken, refreshToken });
         setStatus('success');
         window.history.replaceState({}, '', '/');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Login failed');
         setStatus('error');
-        clearOAuthState();
+        oauthStorage.clearPkceState();
       }
     }
 

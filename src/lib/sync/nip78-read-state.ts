@@ -1,6 +1,6 @@
 import type { EventTemplate } from 'nostr-tools/pure';
 import type { Filter } from 'nostr-tools/filter';
-import type { NIP44Signer } from '@/lib/signer/types';
+import type { NIP44Signer } from 'divine-signer';
 import type { ReadStateMap } from '@/lib/storage/read-state-store';
 
 const D_TAG = 'privdm/read-state';

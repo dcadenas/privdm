@@ -1,6 +1,6 @@
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
-import { NsecSigner } from '../../signer/nsec-signer';
+import { NsecSigner } from 'divine-signer';
 import { createGiftWraps } from '../giftwrap';
 import { createRumor } from '../rumor';
 import { unwrapGiftWrap } from '../unwrap';

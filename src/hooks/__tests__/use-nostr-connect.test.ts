@@ -1,10 +1,20 @@
 import { renderHook, act } from '@testing-library/react';
 import { useNostrConnect } from '../use-nostr-connect';
-import { BunkerNIP44Signer } from '@/lib/signer/bunker-signer';
+import { BunkerNIP44Signer } from 'divine-signer';
 import QRCode from 'qrcode';
 import { createNostrConnectURI } from 'nostr-tools/nip46';
 
-vi.mock('@/lib/signer/bunker-signer');
+vi.mock('divine-signer', async () => {
+  const actual = await vi.importActual('divine-signer');
+  return {
+    ...actual,
+    BunkerNIP44Signer: {
+      fromNostrConnect: vi.fn(),
+      fromBunkerUrl: vi.fn(),
+      reconnect: vi.fn(),
+    },
+  };
+});
 vi.mock('qrcode', () => ({
   default: { toDataURL: vi.fn() },
   toDataURL: vi.fn(),

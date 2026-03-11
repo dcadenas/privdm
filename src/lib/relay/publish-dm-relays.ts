@@ -1,5 +1,5 @@
 import type { SimplePool } from 'nostr-tools/pool';
-import type { NIP44Signer } from '@/lib/signer/types';
+import type { NIP44Signer } from 'divine-signer';
 import { normalizeRelayUrl } from './dm-relays';
 
 export async function publishDMRelayList(

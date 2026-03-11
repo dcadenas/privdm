@@ -1,7 +1,7 @@
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
 import { QueryClient } from '@tanstack/react-query';
-import { NsecSigner } from '../../signer/nsec-signer';
+import { NsecSigner } from 'divine-signer';
 import { createGiftWraps } from '../../nip17/giftwrap';
 import { GiftWrapSubscriptionManager } from '../subscription-manager';
 import { QUERY_KEYS } from '../query-keys';

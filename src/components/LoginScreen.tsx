@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { NsecSigner } from '@/lib/signer/nsec-signer';
-import { ExtensionSigner } from '@/lib/signer/extension-signer';
-import { BunkerNIP44Signer } from '@/lib/signer/bunker-signer';
-import { startDivineOAuth } from '@/lib/signer/keycast-signer';
+import { NsecSigner, ExtensionSigner, BunkerNIP44Signer, buildOAuthUrl } from 'divine-signer';
+import type { OAuthConfig } from 'divine-signer';
+import { oauthStorage } from '@/lib/auth/oauth-storage';
 import { useNostrConnect } from '@/hooks/use-nostr-connect';
 
 type NostrMethod = 'nsec' | 'extension' | 'bunker' | 'nostrconnect';
@@ -14,6 +13,15 @@ const nostrMethods: { id: NostrMethod; label: string; icon: string }[] = [
   { id: 'bunker', label: 'Bunker', icon: '\u{1F510}' },
   { id: 'nsec', label: 'nsec', icon: '\u{1F511}' },
 ];
+
+function getOAuthConfig(): OAuthConfig {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+  return {
+    clientId: 'privdm',
+    redirectUri: `${origin}/auth/callback`,
+    storage: oauthStorage,
+  };
+}
 
 export function LoginScreen() {
   const { login } = useAuth();
@@ -42,7 +50,11 @@ export function LoginScreen() {
   async function handleDivineLogin(defaultRegister?: boolean) {
     setError(null);
     try {
-      await startDivineOAuth(defaultRegister ? { defaultRegister: true } : undefined);
+      const url = await buildOAuthUrl(
+        getOAuthConfig(),
+        defaultRegister ? { defaultRegister: true } : undefined,
+      );
+      window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     }
