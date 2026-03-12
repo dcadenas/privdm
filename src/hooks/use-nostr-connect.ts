@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
-import { SimplePool } from 'nostr-tools/pool';
 import { createNostrConnectURI } from 'nostr-tools/nip46';
 import QRCode from 'qrcode';
 import { BunkerNIP44Signer } from 'divine-signer';
@@ -58,8 +57,6 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
         name: 'PrivDM',
       });
 
-      console.log('[nostrconnect] starting', { clientPubkey, relays: CONNECT_RELAYS, uri });
-
       // Phase 1: Connect to relays and start subscription BEFORE showing QR
       const [qr, handle] = await Promise.all([
         QRCode.toDataURL(uri, { width: 512, margin: 2 }),
@@ -69,32 +66,6 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
       if (abort.signal.aborted) return;
 
       handleRef.current = handle;
-
-      // Debug: broad subscription to see ANY event tagged to our client pubkey
-      const debugPool = new SimplePool();
-      const debugSub = debugPool.subscribeMany(
-        CONNECT_RELAYS,
-        { '#p': [clientPubkey] },
-        {
-          onevent(event) {
-            console.log('[nostrconnect:debug] event received', {
-              kind: event.kind,
-              pubkey: event.pubkey.slice(0, 12) + '...',
-              tags: event.tags,
-              contentLength: event.content.length,
-              created_at: event.created_at,
-              id: event.id.slice(0, 12) + '...',
-            });
-          },
-          oneose() {
-            console.log('[nostrconnect:debug] EOSE on debug subscription');
-          },
-        },
-      );
-      abort.signal.addEventListener('abort', () => {
-        debugSub.close();
-        debugPool.close(CONNECT_RELAYS);
-      });
 
       // Phase 2: Subscription is live — now show the QR
       setQrCodeUrl(qr);
@@ -109,9 +80,6 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
           abort.signal.addEventListener('abort', () => clearTimeout(id));
         }),
       ]);
-
-      debugSub.close();
-      debugPool.close(CONNECT_RELAYS);
 
       if (abort.signal.aborted) return;
 
