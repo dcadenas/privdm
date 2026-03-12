@@ -4,7 +4,7 @@ import { nip19 } from 'nostr-tools';
 import { createNostrConnectURI } from 'nostr-tools/nip46';
 import QRCode from 'qrcode';
 import { BunkerNIP44Signer } from 'divine-signer';
-import type { StoredSession } from 'divine-signer';
+import type { StoredSession, NostrConnectHandle } from 'divine-signer';
 import { DEFAULT_METADATA_RELAYS } from '@/lib/relay/defaults';
 
 export type NostrConnectStatus = 'idle' | 'generating' | 'waiting' | 'connected' | 'logging-in' | 'error' | 'timeout';
@@ -27,12 +27,14 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
   const [connectUri, setConnectUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const handleRef = useRef<NostrConnectHandle | null>(null);
   const onConnectRef = useRef(onConnect);
   onConnectRef.current = onConnect;
 
   const generate = useCallback(async () => {
     // Cancel any previous attempt
     abortRef.current?.abort();
+    handleRef.current?.abort();
     const abort = new AbortController();
     abortRef.current = abort;
 
@@ -54,20 +56,23 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
         name: 'PrivDM',
       });
 
-      const qr = await QRCode.toDataURL(uri, { width: 512, margin: 2 });
+      // Phase 1: Connect to relays and start subscription BEFORE showing QR
+      const [qr, handle] = await Promise.all([
+        QRCode.toDataURL(uri, { width: 512, margin: 2 }),
+        BunkerNIP44Signer.prepareNostrConnect(uri, clientSecretKey, {}, abort.signal),
+      ]);
 
       if (abort.signal.aborted) return;
 
+      handleRef.current = handle;
+
+      // Phase 2: Subscription is live — now show the QR
       setQrCodeUrl(qr);
       setConnectUri(uri);
       setStatus('waiting');
 
-      const signer = await BunkerNIP44Signer.fromNostrConnect(
-        uri,
-        clientSecretKey,
-        {},
-        abort.signal,
-      );
+      // Phase 3: Wait for user to scan
+      const signer = await handle.waitForSigner();
 
       if (abort.signal.aborted) return;
 
@@ -89,7 +94,9 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
+    handleRef.current?.abort();
     abortRef.current = null;
+    handleRef.current = null;
     setStatus('idle');
     setQrCodeUrl(null);
     setConnectUri(null);
