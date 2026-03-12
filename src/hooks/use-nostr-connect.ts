@@ -74,7 +74,7 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
       const debugPool = new SimplePool();
       const debugSub = debugPool.subscribeMany(
         CONNECT_RELAYS,
-        [{ '#p': [clientPubkey] }],
+        { '#p': [clientPubkey] },
         {
           onevent(event) {
             console.log('[nostrconnect:debug] event received', {
