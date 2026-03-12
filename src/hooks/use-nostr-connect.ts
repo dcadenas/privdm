@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
-import { SimplePool } from 'nostr-tools/pool';
 import { createNostrConnectURI } from 'nostr-tools/nip46';
 import QRCode from 'qrcode';
 import { BunkerNIP44Signer } from 'divine-signer';
@@ -68,19 +67,6 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
 
       handleRef.current = handle;
 
-      // Redundant subscription with relaxed filter (no kind restriction)
-      // This catches events that the kind:24133 filter may miss on some relays
-      const helperPool = new SimplePool();
-      const helperSub = helperPool.subscribeMany(
-        CONNECT_RELAYS,
-        { '#p': [clientPubkey] },
-        { onevent() {}, oneose() {} },
-      );
-      abort.signal.addEventListener('abort', () => {
-        helperSub.close();
-        helperPool.close(CONNECT_RELAYS);
-      });
-
       // Phase 2: Subscription is live — now show the QR
       setQrCodeUrl(qr);
       setConnectUri(uri);
@@ -94,9 +80,6 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
           abort.signal.addEventListener('abort', () => clearTimeout(id));
         }),
       ]);
-
-      helperSub.close();
-      helperPool.close(CONNECT_RELAYS);
 
       if (abort.signal.aborted) return;
 
