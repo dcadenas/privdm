@@ -58,6 +58,8 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
         name: 'PrivDM',
       });
 
+      console.log('[nostrconnect] starting', { clientPubkey: clientPubkey.slice(0, 16), relays: CONNECT_RELAYS });
+
       // Phase 1: Connect to relays and start subscription BEFORE showing QR
       const [qr, handle] = await Promise.all([
         QRCode.toDataURL(uri, { width: 512, margin: 2 }),
@@ -68,19 +70,32 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
 
       handleRef.current = handle;
 
-      // Redundant subscription — empirically required for reliable event delivery
+      // Diagnostic subscription on separate pool to monitor event delivery
       const helperPool = new SimplePool();
       const helperSub = helperPool.subscribeMany(
         CONNECT_RELAYS,
         { '#p': [clientPubkey] },
-        { onevent() {}, oneose() {} },
+        {
+          onevent(event) {
+            console.log('[nostrconnect:helper] event received', {
+              kind: event.kind,
+              pubkey: event.pubkey.slice(0, 16),
+              id: event.id.slice(0, 16),
+            });
+          },
+          oneose() {
+            console.log('[nostrconnect:helper] EOSE');
+          },
+        },
       );
       abort.signal.addEventListener('abort', () => {
+        console.log('[nostrconnect:helper] cleaning up');
         helperSub.close();
         helperPool.close(CONNECT_RELAYS);
       });
 
       // Phase 2: Subscription is live — now show the QR
+      console.log('[nostrconnect] phase 1 complete, showing QR');
       setQrCodeUrl(qr);
       setConnectUri(uri);
       setStatus('waiting');
@@ -109,6 +124,7 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
     } catch (err) {
       if (abort.signal.aborted) return;
       const message = err instanceof Error ? err.message : 'Connection failed';
+      console.log('[nostrconnect] error', message);
       const isTimeout = message.toLowerCase().includes('timeout');
       setStatus(isTimeout ? 'timeout' : 'error');
       setError(isTimeout ? 'Connection timed out — the signer did not respond' : message);
