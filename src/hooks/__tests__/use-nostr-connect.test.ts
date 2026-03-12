@@ -171,7 +171,7 @@ describe('useNostrConnect', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
 
     expect(result.current.status).toBe('timeout');
-    expect(result.current.error).toBe('Connection timeout');
+    expect(result.current.error).toBe('Connection timed out — the signer did not respond');
   });
 
   it('cancel resets to idle and aborts handle', async () => {
@@ -220,6 +220,69 @@ describe('useNostrConnect', () => {
     expect(first.handle.abort).toHaveBeenCalled();
     expect(result.current.status).toBe('connected');
     expect(onConnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('times out after 60s if signer never responds', async () => {
+    const { handle } = createMockHandle(); // never resolves
+    vi.mocked(BunkerNIP44Signer.prepareNostrConnect).mockResolvedValue(handle as never);
+
+    const onConnect = vi.fn();
+    const { result } = renderHook(() => useNostrConnect(onConnect));
+
+    act(() => { result.current.generate(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.status).toBe('waiting');
+
+    // Advance past the 60s timeout
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+
+    expect(result.current.status).toBe('timeout');
+    expect(result.current.error).toBe('Connection timed out — the signer did not respond');
+    expect(onConnect).not.toHaveBeenCalled();
+  });
+
+  it('clears timeout when signer responds before 60s', async () => {
+    const { handle, resolve } = createMockHandle();
+    vi.mocked(BunkerNIP44Signer.prepareNostrConnect).mockResolvedValue(handle as never);
+
+    const onConnect = vi.fn();
+    const { result } = renderHook(() => useNostrConnect(onConnect));
+
+    act(() => { result.current.generate(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.status).toBe('waiting');
+
+    // Signer responds at 30s
+    await act(async () => {
+      resolve(mockSigner);
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    expect(result.current.status).toBe('connected');
+
+    // Advance well past 60s — should NOT transition to timeout
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(result.current.status).toBe('connected');
+  });
+
+  it('does not show timeout when user cancels before 60s', async () => {
+    const { handle } = createMockHandle(); // never resolves
+    vi.mocked(BunkerNIP44Signer.prepareNostrConnect).mockResolvedValue(handle as never);
+
+    const onConnect = vi.fn();
+    const { result } = renderHook(() => useNostrConnect(onConnect));
+
+    act(() => { result.current.generate(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.status).toBe('waiting');
+
+    // User cancels
+    act(() => { result.current.cancel(); });
+    expect(result.current.status).toBe('idle');
+
+    // Advance past 60s — should stay idle, not flip to timeout
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(result.current.status).toBe('idle');
   });
 
   it('exposes connectUri', async () => {

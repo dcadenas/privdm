@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
+import { SimplePool } from 'nostr-tools/pool';
 import { createNostrConnectURI } from 'nostr-tools/nip46';
 import QRCode from 'qrcode';
 import { BunkerNIP44Signer } from 'divine-signer';
@@ -20,6 +21,7 @@ const CONNECT_RELAYS = [
   ...DEFAULT_METADATA_RELAYS.slice(0, 2),
 ];
 const PERMISSIONS = 'get_public_key,nip44_encrypt,nip44_decrypt,sign_event:13,sign_event:14,sign_event:1059';
+const CONNECT_TIMEOUT_MS = 60_000;
 
 export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promise<void> | void) {
   const [status, setStatus] = useState<NostrConnectStatus>('idle');
@@ -56,6 +58,8 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
         name: 'PrivDM',
       });
 
+      console.log('[nostrconnect] starting', { clientPubkey, relays: CONNECT_RELAYS, uri });
+
       // Phase 1: Connect to relays and start subscription BEFORE showing QR
       const [qr, handle] = await Promise.all([
         QRCode.toDataURL(uri, { width: 512, margin: 2 }),
@@ -66,13 +70,48 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
 
       handleRef.current = handle;
 
+      // Debug: broad subscription to see ANY event tagged to our client pubkey
+      const debugPool = new SimplePool();
+      const debugSub = debugPool.subscribeMany(
+        CONNECT_RELAYS,
+        [{ '#p': [clientPubkey] }],
+        {
+          onevent(event) {
+            console.log('[nostrconnect:debug] event received', {
+              kind: event.kind,
+              pubkey: event.pubkey.slice(0, 12) + '...',
+              tags: event.tags,
+              contentLength: event.content.length,
+              created_at: event.created_at,
+              id: event.id.slice(0, 12) + '...',
+            });
+          },
+          oneose() {
+            console.log('[nostrconnect:debug] EOSE on debug subscription');
+          },
+        },
+      );
+      abort.signal.addEventListener('abort', () => {
+        debugSub.close();
+        debugPool.close(CONNECT_RELAYS);
+      });
+
       // Phase 2: Subscription is live — now show the QR
       setQrCodeUrl(qr);
       setConnectUri(uri);
       setStatus('waiting');
 
-      // Phase 3: Wait for user to scan
-      const signer = await handle.waitForSigner();
+      // Phase 3: Wait for user to scan (with timeout)
+      const signer = await Promise.race([
+        handle.waitForSigner(),
+        new Promise<never>((_, reject) => {
+          const id = setTimeout(() => reject(new Error('timeout')), CONNECT_TIMEOUT_MS);
+          abort.signal.addEventListener('abort', () => clearTimeout(id));
+        }),
+      ]);
+
+      debugSub.close();
+      debugPool.close(CONNECT_RELAYS);
 
       if (abort.signal.aborted) return;
 
@@ -88,7 +127,7 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
       const message = err instanceof Error ? err.message : 'Connection failed';
       const isTimeout = message.toLowerCase().includes('timeout');
       setStatus(isTimeout ? 'timeout' : 'error');
-      setError(message);
+      setError(isTimeout ? 'Connection timed out — the signer did not respond' : message);
     }
   }, []);
 
