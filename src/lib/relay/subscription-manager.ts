@@ -193,7 +193,7 @@ export class GiftWrapSubscriptionManager {
             wrapId: event.id,
           };
 
-          console.debug('[subscription] message:', {
+          console.log('[subscription] message:', {
             rumorId: unwrapped.rumor.id.slice(0, 8),
             sender: unwrapped.senderPubkey,
             conversationId: unwrapped.conversationId,

@@ -22,6 +22,12 @@ export async function unwrapGiftWrap(
 
   // Step 4: Anti-impersonation check — seal author must match rumor author
   if (seal.pubkey !== rumor.pubkey) {
+    console.warn('[unwrap] anti-impersonation failed:', {
+      sealPubkey: seal.pubkey.slice(0, 16),
+      rumorPubkey: rumor.pubkey.slice(0, 16),
+      rumorKind: rumor.kind,
+      rumorTags: rumor.tags,
+    });
     throw new Error(
       `Anti-impersonation check failed: seal.pubkey (${seal.pubkey}) !== rumor.pubkey (${rumor.pubkey})`,
     );
@@ -29,7 +35,13 @@ export async function unwrapGiftWrap(
 
   // Step 5: Reject non-DM rumors (must be kind 14 per NIP-17)
   if (rumor.kind !== 14) {
-    console.warn('[unwrap] rejecting non-DM rumor:', { kind: rumor.kind, id: rumor.id, pubkey: rumor.pubkey });
+    console.warn('[unwrap] rejecting non-DM rumor:', {
+      kind: rumor.kind,
+      id: rumor.id,
+      pubkey: rumor.pubkey.slice(0, 16),
+      content: rumor.content.slice(0, 100),
+      tags: rumor.tags,
+    });
     throw new Error(`Expected kind 14 DM rumor, got kind ${rumor.kind}`);
   }
 
