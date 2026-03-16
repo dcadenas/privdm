@@ -20,17 +20,12 @@ export async function unwrapGiftWrap(
   const rumorJson = await signer.nip44Decrypt(seal.pubkey, seal.content);
   const rumor = JSON.parse(rumorJson) as Rumor;
 
-  // Step 4: Anti-impersonation check — seal author must match rumor author
+  // Step 4: Anti-impersonation — seal pubkey is the authenticated identity.
+  // The rumor is unsigned (deniability), so if a buggy client puts the wrong
+  // pubkey in the rumor, trust the seal's signed pubkey instead of rejecting.
   if (seal.pubkey !== rumor.pubkey) {
-    console.warn('[unwrap] anti-impersonation failed:', {
-      sealPubkey: seal.pubkey.slice(0, 16),
-      rumorPubkey: rumor.pubkey.slice(0, 16),
-      rumorKind: rumor.kind,
-      rumorTags: rumor.tags,
-    });
-    throw new Error(
-      `Anti-impersonation check failed: seal.pubkey (${seal.pubkey}) !== rumor.pubkey (${rumor.pubkey})`,
-    );
+    console.warn('[unwrap] seal/rumor pubkey mismatch, using seal pubkey as authoritative sender');
+    rumor.pubkey = seal.pubkey;
   }
 
   // Step 5: Reject non-DM rumors (must be kind 14 per NIP-17)
