@@ -326,6 +326,19 @@ function MessageArea({
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMsgId = messages[messages.length - 1]?.id;
   const prevLastMsgIdRef = useRef<string | undefined>();
+  const [showScrollDown, setShowScrollDown] = useState(false);
+
+  const hasMessages = messages.length > 0;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setShowScrollDown(dist > 300);
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [hasMessages]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -347,6 +360,10 @@ function MessageArea({
     }
   }, [lastMsgId, myPubkey, messages]);
 
+  const scrollToBottom = useCallback(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, []);
+
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -356,25 +373,43 @@ function MessageArea({
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4" data-testid="message-list">
-      {messages.map((msg, i) => {
-        const prev = messages[i - 1];
-        const next = messages[i + 1];
-        const showSender = !prev || prev.senderPubkey !== msg.senderPubkey;
-        const isFirstInGroup = !prev || prev.senderPubkey !== msg.senderPubkey;
-        const showTimestamp = shouldShowTimestamp(msg, next);
-        return (
-          <div key={msg.id} className={isFirstInGroup && i > 0 ? 'mt-3' : ''}>
-            <MessageBubble
-              message={msg}
-              isMine={msg.senderPubkey === myPubkey}
-              showSender={showSender}
-              showTimestamp={showTimestamp}
-              isFirstInGroup={isFirstInGroup}
-            />
-          </div>
-        );
-      })}
+    <div className="relative flex-1 overflow-hidden">
+      <div ref={scrollRef} className="h-full overflow-y-auto px-4 py-4" data-testid="message-list">
+        {messages.map((msg, i) => {
+          const prev = messages[i - 1];
+          const next = messages[i + 1];
+          const showSender = !prev || prev.senderPubkey !== msg.senderPubkey;
+          const isFirstInGroup = !prev || prev.senderPubkey !== msg.senderPubkey;
+          const showTimestamp = shouldShowTimestamp(msg, next);
+          return (
+            <div key={msg.id} className={isFirstInGroup && i > 0 ? 'mt-3' : ''}>
+              <MessageBubble
+                message={msg}
+                isMine={msg.senderPubkey === myPubkey}
+                showSender={showSender}
+                showTimestamp={showTimestamp}
+                isFirstInGroup={isFirstInGroup}
+              />
+            </div>
+          );
+        })}
+      </div>
+      {showScrollDown && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5
+                     rounded-full bg-gray-800/90 border border-gray-700/50 px-3 py-1.5
+                     text-xs text-gray-300 shadow-lg backdrop-blur-sm
+                     transition-all hover:bg-gray-700/90 hover:text-gray-100
+                     animate-fade-in"
+          data-testid="scroll-to-bottom"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
+          </svg>
+          Latest
+        </button>
+      )}
     </div>
   );
 }
