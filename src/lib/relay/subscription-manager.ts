@@ -21,7 +21,6 @@ export interface StartOptions {
 
 const RECONNECT_BASE_DELAY = 5_000;
 const RECONNECT_MAX_DELAY = 60_000;
-const RECONNECT_MAX_ATTEMPTS = 10;
 const RECONNECT_OVERLAP = 30; // seconds of overlap when resubscribing
 export class GiftWrapSubscriptionManager {
   private sub: SubCloser | null = null;
@@ -93,18 +92,13 @@ export class GiftWrapSubscriptionManager {
 
           if (this.stopped || this.restarting) return;
 
-          if (this.reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
-            console.error('[subscription] max reconnect attempts reached, giving up');
-            return;
-          }
-
           // Exponential backoff: 5s, 10s, 20s, 40s, 60s, 60s, ...
           const backoff = Math.min(
             RECONNECT_BASE_DELAY * Math.pow(2, this.reconnectAttempts),
             RECONNECT_MAX_DELAY,
           );
           this.reconnectAttempts++;
-          console.log(`[subscription] scheduling restart in ${backoff}ms (attempt ${this.reconnectAttempts}/${RECONNECT_MAX_ATTEMPTS})`);
+          console.log(`[subscription] scheduling restart in ${backoff}ms (attempt ${this.reconnectAttempts})`);
           this.restartTimer = setTimeout(() => this.reconnectRestart(false), backoff);
         },
       } as never,

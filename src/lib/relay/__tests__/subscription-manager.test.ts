@@ -555,4 +555,36 @@ describe('GiftWrapSubscriptionManager', () => {
     const conversations = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
     expect(conversations).toBeUndefined();
   });
+
+  it('retries indefinitely on close (no max attempts cap)', () => {
+    vi.useFakeTimers();
+
+    let onClose: ((reasons: string[]) => void) | undefined;
+    const mockPool = {
+      close: vi.fn(),
+      subscribeMany: vi.fn((_relays: string[], _filters: unknown, opts: { onclose: (reasons: string[]) => void }) => {
+        onClose = opts.onclose;
+        return { close: vi.fn() };
+      }),
+    };
+
+    manager.start({
+      pool: mockPool as never,
+      userPubkey: 'pub',
+      dmRelays: ['wss://r'],
+      signer: {} as never,
+      queryClient,
+    });
+
+    // Simulate 15 consecutive closes (previously would have stopped at 10)
+    for (let i = 0; i < 15; i++) {
+      onClose!(['relay connection closed']);
+      vi.advanceTimersByTime(60_000); // advance past max backoff
+    }
+
+    // Should have resubscribed 15 + 1 (initial) = 16 times
+    expect(mockPool.subscribeMany).toHaveBeenCalledTimes(16);
+
+    vi.useRealTimers();
+  });
 });
