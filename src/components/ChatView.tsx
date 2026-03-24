@@ -324,25 +324,28 @@ function MessageArea({
 }) {
   const { data: messages = [] } = useMessages(conversationId);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const prevCountRef = useRef(0);
+  const lastMsgId = messages[messages.length - 1]?.id;
+  const prevLastMsgIdRef = useRef<string | undefined>();
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || messages.length === 0) return;
 
-    const prevCount = prevCountRef.current;
-    prevCountRef.current = messages.length;
+    const prevLastMsgId = prevLastMsgIdRef.current;
+    prevLastMsgIdRef.current = lastMsgId;
 
-    // Only auto-scroll when new messages are appended (not prepended by backfill)
-    // and user is already near the bottom
+    // No change in last message -- nothing to scroll for
+    if (lastMsgId === prevLastMsgId) return;
+
+    const lastMsg = messages[messages.length - 1];
+    const isMine = lastMsg?.senderPubkey === myPubkey;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     const isNearBottom = distanceFromBottom < 150;
-    const isNewMessage = messages.length > prevCount;
 
-    if (isNearBottom || (isNewMessage && prevCount === 0)) {
-      el.scrollTo({ top: el.scrollHeight, behavior: isNewMessage && prevCount > 0 ? 'smooth' : 'auto' });
+    if (isMine || isNearBottom || !prevLastMsgId) {
+      el.scrollTo({ top: el.scrollHeight, behavior: prevLastMsgId ? 'smooth' : 'auto' });
     }
-  }, [messages.length]);
+  }, [lastMsgId, myPubkey, messages]);
 
   if (messages.length === 0) {
     return (
