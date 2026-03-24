@@ -3,7 +3,7 @@ import { nip19 } from 'nostr-tools';
 import { QueryClient } from '@tanstack/react-query';
 import { NsecSigner } from 'divine-signer';
 import { createGiftWraps } from '../../nip17/giftwrap';
-import { GiftWrapSubscriptionManager } from '../subscription-manager';
+import { GiftWrapSubscriptionManager, insertMessages } from '../subscription-manager';
 import { QUERY_KEYS } from '../query-keys';
 import type { DecryptedMessage, Conversation } from '../types';
 import type { MessageStore } from '../../storage/message-store';
@@ -651,5 +651,33 @@ describe('GiftWrapSubscriptionManager', () => {
     expect(mockPool.subscribeMany).toHaveBeenCalledTimes(16);
 
     vi.useRealTimers();
+  });
+
+  it('insertMessages batch inserts multiple messages in one update', () => {
+    const convId = 'aaa+bbb';
+    const msg1: DecryptedMessage = {
+      id: 'r1', conversationId: convId, senderPubkey: 'aaa',
+      content: 'first', createdAt: 100, rumor: {} as never, wrapId: 'w1',
+    };
+    const msg2: DecryptedMessage = {
+      id: 'r2', conversationId: convId, senderPubkey: 'bbb',
+      content: 'second', createdAt: 200, rumor: {} as never, wrapId: 'w2',
+    };
+
+    // Track how many times setQueryData is called
+    const spy = vi.spyOn(queryClient, 'setQueryData');
+    insertMessages(queryClient, [msg1, msg2]);
+
+    // Should call setQueryData for messages once per conversation (not once per message)
+    // and once for conversations list
+    const messageCalls = spy.mock.calls.filter(([key]) =>
+      Array.isArray(key) && key[0] === 'messages'
+    );
+    expect(messageCalls).toHaveLength(1);
+
+    const msgs = queryClient.getQueryData<DecryptedMessage[]>(QUERY_KEYS.messages(convId));
+    expect(msgs).toHaveLength(2);
+
+    spy.mockRestore();
   });
 });

@@ -287,3 +287,67 @@ export async function insertMessage(
 
   return true;
 }
+
+export function insertMessages(
+  queryClient: QueryClient,
+  messages: DecryptedMessage[],
+): void {
+  if (messages.length === 0) return;
+
+  // Group by conversation
+  const byConversation = new Map<string, DecryptedMessage[]>();
+  for (const msg of messages) {
+    const group = byConversation.get(msg.conversationId) ?? [];
+    group.push(msg);
+    byConversation.set(msg.conversationId, group);
+  }
+
+  // Batch update messages per conversation, tracking actual insert counts
+  const insertedCounts = new Map<string, number>();
+  for (const [convId, msgs] of byConversation) {
+    queryClient.setQueryData<DecryptedMessage[]>(
+      QUERY_KEYS.messages(convId),
+      (prev = []) => {
+        const existingIds = new Set(prev.map(m => m.id));
+        const newMsgs = msgs.filter(m => !existingIds.has(m.id));
+        insertedCounts.set(convId, newMsgs.length);
+        if (newMsgs.length === 0) return prev;
+        return [...prev, ...newMsgs].sort((a, b) => a.createdAt - b.createdAt);
+      },
+    );
+  }
+
+  // Single update for conversation list
+  queryClient.setQueryData<Conversation[]>(
+    QUERY_KEYS.conversations,
+    (prev = []) => {
+      let updated = [...prev];
+      for (const [convId, msgs] of byConversation) {
+        const count = insertedCounts.get(convId) ?? 0;
+        if (count === 0) continue;
+        const latest = msgs.reduce((a, b) => a.createdAt >= b.createdAt ? a : b);
+        const existing = updated.find(c => c.id === convId);
+
+        if (existing) {
+          updated = updated.map(c =>
+            c.id === convId
+              ? {
+                  ...c,
+                  lastMessage: latest.createdAt >= c.lastMessage.createdAt ? latest : c.lastMessage,
+                  messageCount: c.messageCount + count,
+                }
+              : c,
+          );
+        } else {
+          updated.push({
+            id: convId,
+            participants: convId.split('+'),
+            lastMessage: latest,
+            messageCount: count,
+          });
+        }
+      }
+      return updated.sort((a, b) => b.lastMessage.createdAt - a.lastMessage.createdAt);
+    },
+  );
+}

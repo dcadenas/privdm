@@ -6,7 +6,7 @@ import type { NostrSigner } from 'divine-signer';
 import type { MessageStore } from '../storage/message-store';
 import type { DecryptedMessage } from './types';
 import { unwrapGiftWrap } from '../nip17/unwrap';
-import { insertMessage } from './subscription-manager';
+import { insertMessages } from './subscription-manager';
 
 export const BACKFILL_RETRY_DELAYS = [2_000, 4_000, 8_000];
 
@@ -78,34 +78,6 @@ export interface BackfillResult {
   eventsProcessed: number;
 }
 
-async function processEvent(
-  event: { id: string; pubkey: string; created_at: number; kind: number; tags: string[][]; content: string; sig: string },
-  signer: NostrSigner,
-  queryClient: QueryClient,
-  store: MessageStore,
-): Promise<boolean> {
-  const unwrapped = await unwrapGiftWrap(signer, event as VerifiedEvent);
-  const message: DecryptedMessage = {
-    id: unwrapped.rumor.id,
-    conversationId: unwrapped.conversationId,
-    senderPubkey: unwrapped.senderPubkey,
-    content: unwrapped.rumor.content,
-    createdAt: unwrapped.rumor.created_at,
-    rumor: unwrapped.rumor,
-    wrapId: event.id,
-  };
-
-  console.debug('[backfill] message:', {
-    rumorId: unwrapped.rumor.id.slice(0, 8),
-    sender: unwrapped.senderPubkey,
-    conversationId: unwrapped.conversationId,
-    pTags: unwrapped.rumor.tags.filter(t => t[0] === 'p').map(t => t[1]),
-    rumorPubkey: unwrapped.rumor.pubkey,
-  });
-
-  return insertMessage(queryClient, message, store, event.created_at);
-}
-
 function makeFilter(userPubkey: string, pageSize: number, cursor?: number): Filter {
   const filter: Record<string, unknown> = {
     kinds: [1059],
@@ -164,7 +136,8 @@ export async function backfillGiftWraps(options: BackfillOptions): Promise<Backf
     // Fetch next page while processing current page sequentially
     const nextFetch = queryWithRetry(pool, dmRelays, makeFilter(userPubkey, pageSize, cursor), signal);
 
-    let inserted = 0;
+    // Collect successfully decrypted messages, then batch-insert
+    const batchMessages: { message: DecryptedMessage; wrapCreatedAt: number }[] = [];
     let decryptFails = 0;
     for (const event of events) {
       if (signal?.aborted) break;
@@ -172,12 +145,32 @@ export async function backfillGiftWraps(options: BackfillOptions): Promise<Backf
       processedWrapIds.add(event.id);
 
       try {
-        const ok = await processEvent(event, signer, queryClient, store);
-        if (ok) inserted++;
+        const unwrapped = await unwrapGiftWrap(signer, event as VerifiedEvent);
+        const message: DecryptedMessage = {
+          id: unwrapped.rumor.id,
+          conversationId: unwrapped.conversationId,
+          senderPubkey: unwrapped.senderPubkey,
+          content: unwrapped.rumor.content,
+          createdAt: unwrapped.rumor.created_at,
+          rumor: unwrapped.rumor,
+          wrapId: event.id,
+        };
+        batchMessages.push({ message, wrapCreatedAt: event.created_at });
       } catch {
         decryptFails++;
       }
     }
+
+    // Save to store individually (needs per-message dedup), then batch UI update
+    let inserted = 0;
+    const uiMessages: DecryptedMessage[] = [];
+    for (const { message, wrapCreatedAt } of batchMessages) {
+      const saved = await store.saveMessage(message, wrapCreatedAt);
+      if (!saved) continue;
+      uiMessages.push(message);
+      inserted++;
+    }
+    insertMessages(queryClient, uiMessages);
     eventsProcessed += inserted;
 
     if (decryptFails > 0) {
