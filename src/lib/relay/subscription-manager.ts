@@ -46,13 +46,14 @@ export class GiftWrapSubscriptionManager {
   start(options: StartOptions): void {
     // Close existing sub and clear queue, but keep processedWrapIds.
     // Set restarting flag so the onclose handler doesn't schedule another restart.
+    // Keep restarting=true until the new subscription is created to prevent
+    // async onclose from the old sub triggering a competing restart.
     this.restarting = true;
     this.sub?.close();
     this.sub = null;
     this.queue = [];
     this.stopped = false;
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
-    this.restarting = false;
 
     this.startOptions = options;
     const { pool, userPubkey, dmRelays, signer, queryClient, store, since } = options;
@@ -108,6 +109,9 @@ export class GiftWrapSubscriptionManager {
       } as never,
     );
 
+    // Safe to clear restarting now — new sub is created, any old onclose
+    // that fires will see the new this.sub and our restarting guard handled it.
+    this.restarting = false;
     this.lastEventReceivedAt = Date.now();
     if (this.livenessTimer) clearInterval(this.livenessTimer);
     this.livenessTimer = setInterval(() => {
