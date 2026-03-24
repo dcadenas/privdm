@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { NsecSigner, ExtensionSigner, BunkerNIP44Signer, buildOAuthUrl } from 'divine-signer';
-import type { OAuthConfig } from 'divine-signer';
-import { oauthStorage } from '@/lib/auth/oauth-storage';
+import { getOAuthConfig } from '@/lib/auth/oauth-config';
 import { useNostrConnect } from '@/hooks/use-nostr-connect';
 
 type NostrMethod = 'nsec' | 'extension' | 'bunker' | 'nostrconnect';
@@ -14,22 +13,12 @@ const nostrMethods: { id: NostrMethod; label: string; icon: string }[] = [
   { id: 'nsec', label: 'nsec', icon: '\u{1F511}' },
 ];
 
-function getOAuthConfig(): OAuthConfig {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
-  return {
-    clientId: 'privdm',
-    redirectUri: `${origin}/auth/callback`,
-    storage: oauthStorage,
-  };
-}
-
 export function LoginScreen() {
   const { login } = useAuth();
   const [method, setMethod] = useState<NostrMethod | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state
   const [nsec, setNsec] = useState('');
   const [bunkerUrl, setBunkerUrl] = useState('');
 
@@ -37,7 +26,6 @@ export function LoginScreen() {
     await login(signer, session);
   });
 
-  // Auto-generate QR when switching to nostrconnect; cancel when switching away
   useEffect(() => {
     if (method === 'nostrconnect') {
       nostrConnect.generate();
@@ -104,10 +92,8 @@ export function LoginScreen() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-gray-950 text-gray-100">
-      {/* Ambient glow */}
-      <div className="login-glow pointer-events-none absolute inset-0" />
 
-      {/* Subtle grid texture */}
+      <div className="login-glow pointer-events-none absolute inset-0" />
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.03]"
         style={{
@@ -118,7 +104,7 @@ export function LoginScreen() {
       />
 
       <div className="relative z-10 w-full max-w-md px-6 animate-fade-in">
-        {/* Header */}
+
         <div className="mb-10 text-center">
           <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-500/20 bg-amber-500/10 text-2xl">
             💬
@@ -130,8 +116,6 @@ export function LoginScreen() {
             Private encrypted messaging
           </p>
         </div>
-
-        {/* Primary diVine CTA */}
         <button
           onClick={() => handleDivineLogin()}
           className="btn-primary w-full py-3 text-base flex items-center justify-center gap-2.5"
@@ -149,15 +133,11 @@ export function LoginScreen() {
             create an account
           </button>
         </p>
-
-        {/* Divider */}
         <div className="flex items-center gap-3 my-6">
           <div className="h-px flex-1 bg-gray-800/60" />
           <span className="text-xs text-gray-600">more nostr ways to connect</span>
           <div className="h-px flex-1 bg-gray-800/60" />
         </div>
-
-        {/* Nostr method grid */}
         <div className="grid grid-cols-2 gap-2">
           {nostrMethods.map((m) => (
             <button
@@ -174,8 +154,6 @@ export function LoginScreen() {
             </button>
           ))}
         </div>
-
-        {/* Method form panel */}
         {method && (
           <div className="mt-4 space-y-4 animate-slide-up" key={method}>
             {method === 'extension' && (
@@ -301,15 +279,11 @@ export function LoginScreen() {
                 )}
               </div>
             )}
-
-            {/* Error display */}
             {error && (
               <div className="rounded-lg border border-red-800/40 bg-red-950/30 px-4 py-3 animate-slide-up">
                 <p className="text-xs text-red-400" data-testid="login-error">{error}</p>
               </div>
             )}
-
-            {/* Submit (hidden for nostrconnect — connection is automatic) */}
             {method !== 'nostrconnect' && (
               <button
                 onClick={handleLogin}
@@ -329,15 +303,11 @@ export function LoginScreen() {
             )}
           </div>
         )}
-
-        {/* Error display (when no method selected) */}
         {!method && error && (
           <div className="mt-4 rounded-lg border border-red-800/40 bg-red-950/30 px-4 py-3 animate-slide-up">
             <p className="text-xs text-red-400" data-testid="login-error">{error}</p>
           </div>
         )}
-
-        {/* Footer */}
         <div className="mt-8 space-y-2 text-center">
           <p className="text-[10px] leading-relaxed text-gray-600">
             Messages are end-to-end encrypted using the Nostr protocol

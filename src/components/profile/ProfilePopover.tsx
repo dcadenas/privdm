@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useProfile } from '@/hooks/use-profile';
 import { resolveIdentity, toNpub } from '@/lib/nostr-identity';
+import { ProfilePic } from './ProfilePic';
 
 export function ProfilePopover({
   pubkey,
@@ -75,22 +76,8 @@ export function ProfilePopover({
       className="fixed z-50 w-72 rounded-xl border border-gray-800/60 bg-gray-900 p-4 shadow-2xl animate-fade-in"
       style={{ top: position.top, left: position.left }}
     >
-      {/* Picture + name */}
       <div className="flex items-center gap-3">
-        {profile?.picture ? (
-          <img
-            src={profile.picture}
-            alt=""
-            className="h-14 w-14 rounded-full object-cover ring-1 ring-gray-800"
-          />
-        ) : (
-          <div
-            className="flex h-14 w-14 items-center justify-center rounded-full text-lg font-medium text-white/80"
-            style={{ backgroundColor: `hsl(${parseInt(pubkey.slice(0, 6), 16) % 360}, 40%, 25%)` }}
-          >
-            {pubkey.slice(0, 2).toUpperCase()}
-          </div>
-        )}
+        <ProfilePic pubkey={pubkey} size="lg" />
         <div className="min-w-0 flex-1">
           <p className={`truncate text-sm font-medium text-gray-100 ${identity.primaryIsMono ? 'font-mono text-xs' : ''}`}>
             {identity.primary}

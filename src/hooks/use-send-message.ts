@@ -100,21 +100,22 @@ export function useSendMessage() {
       // Now do the actual gift-wrap + publish (slow part)
       const { wraps, selfWrap } = await createGiftWraps(signer, recipients, rumor);
 
-      const publishPromises: Promise<void>[] = [];
+      // Fetch all DM relay lists in parallel (recipients + self)
+      const allPubkeysForRelays = [...recipients.map((r) => r.pubkey), pubkey];
+      const relayLists = await Promise.all(
+        allPubkeysForRelays.map((pk) => fetchDMRelays(pool, pk)),
+      );
 
-      // Publish each wrap to the recipient's DM relays
+      const publishPromises: Promise<void>[] = [];
       for (let i = 0; i < recipients.length; i++) {
         const wrap = wraps[i]!;
-        const recipientRelayList = await fetchDMRelays(pool, recipients[i]!.pubkey);
-        const relays = recipientRelayList?.relays ?? DEFAULT_DM_RELAYS;
+        const relays = relayLists[i]?.relays ?? DEFAULT_DM_RELAYS;
         publishPromises.push(
           Promise.any(pool.publish(relays, wrap)).then(() => {}),
         );
       }
 
-      // Publish self-wrap to own DM relays
-      const senderRelayList = await fetchDMRelays(pool, pubkey);
-      const senderRelays = senderRelayList?.relays ?? DEFAULT_DM_RELAYS;
+      const senderRelays = relayLists[recipients.length]?.relays ?? DEFAULT_DM_RELAYS;
       publishPromises.push(
         Promise.any(pool.publish(senderRelays, selfWrap)).then(() => {}),
       );

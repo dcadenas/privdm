@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
-import { SimplePool } from 'nostr-tools/pool';
 import { createNostrConnectURI } from 'nostr-tools/nip46';
 import QRCode from 'qrcode';
 import { BunkerNIP44Signer } from 'divine-signer';
@@ -70,30 +69,6 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
 
       handleRef.current = handle;
 
-      // Diagnostic subscription on separate pool to monitor event delivery
-      const helperPool = new SimplePool();
-      const helperSub = helperPool.subscribeMany(
-        CONNECT_RELAYS,
-        { '#p': [clientPubkey] },
-        {
-          onevent(event) {
-            console.log('[nostrconnect:helper] event received', {
-              kind: event.kind,
-              pubkey: event.pubkey.slice(0, 16),
-              id: event.id.slice(0, 16),
-            });
-          },
-          oneose() {
-            console.log('[nostrconnect:helper] EOSE');
-          },
-        },
-      );
-      abort.signal.addEventListener('abort', () => {
-        console.log('[nostrconnect:helper] cleaning up');
-        helperSub.close();
-        helperPool.close(CONNECT_RELAYS);
-      });
-
       // Phase 2: Subscription is live — now show the QR
       console.log('[nostrconnect] phase 1 complete, showing QR');
       setQrCodeUrl(qr);
@@ -108,9 +83,6 @@ export function useNostrConnect(onConnect: (result: NostrConnectResult) => Promi
           abort.signal.addEventListener('abort', () => clearTimeout(id));
         }),
       ]);
-
-      helperSub.close();
-      helperPool.close(CONNECT_RELAYS);
 
       if (abort.signal.aborted) return;
 

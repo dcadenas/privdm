@@ -12,29 +12,22 @@ export function useHandlers(kind: number | null) {
   return useQuery({
     queryKey: QUERY_KEYS.handlers(kind ?? 0),
     queryFn: async (): Promise<HandlerInfo[]> => {
-      // Load from IndexedDB first for instant display
       const cached = await handlerStore.getByKind(kind!);
+      const filter = { kinds: [31990], '#k': [String(kind!)] };
 
-      // Fetch fresh from relays in background
-      pool.querySync(DEFAULT_METADATA_RELAYS, {
-        kinds: [31990],
-        '#k': [String(kind!)],
-      }).then(events => {
-        const fresh = events.map(parseHandlerEvent);
-        if (fresh.length > 0) {
-          void handlerStore.saveAll(fresh);
-        }
-      }).catch(() => {
-        // Relay fetch failed — cached data still available
-      });
-
-      if (cached.length > 0) return cached;
+      if (cached.length > 0) {
+        // Return cached immediately; refresh from relays in background
+        pool.querySync(DEFAULT_METADATA_RELAYS, filter).then(events => {
+          const fresh = events.map(parseHandlerEvent);
+          if (fresh.length > 0) {
+            void handlerStore.saveAll(fresh);
+          }
+        }).catch(() => {});
+        return cached;
+      }
 
       // No cache — wait for relay response
-      const events = await pool.querySync(DEFAULT_METADATA_RELAYS, {
-        kinds: [31990],
-        '#k': [String(kind!)],
-      });
+      const events = await pool.querySync(DEFAULT_METADATA_RELAYS, filter);
       const handlers = events.map(parseHandlerEvent);
       if (handlers.length > 0) {
         void handlerStore.saveAll(handlers);

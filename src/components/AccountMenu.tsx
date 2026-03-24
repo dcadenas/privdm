@@ -132,7 +132,6 @@ const AccountDropdown = forwardRef<HTMLDivElement, AccountDropdownProps>(
         className="fixed z-50 w-64 rounded-xl border border-gray-800/60 bg-gray-900 p-1.5 shadow-2xl animate-fade-in"
         style={{ top: position.top, left: position.left }}
       >
-        {/* Copy npub */}
         <button
           onClick={onCopy}
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left
@@ -149,7 +148,6 @@ const AccountDropdown = forwardRef<HTMLDivElement, AccountDropdownProps>(
           </div>
         </button>
 
-        {/* Edit profile */}
         <button
           onClick={onEditProfile}
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left
@@ -163,10 +161,8 @@ const AccountDropdown = forwardRef<HTMLDivElement, AccountDropdownProps>(
           <p className="text-xs text-gray-300">Edit profile</p>
         </button>
 
-        {/* Divider */}
         <div className="mx-2 my-1 border-t border-gray-800/50" />
 
-        {/* Sign out */}
         <button
           onClick={onSignOut}
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left

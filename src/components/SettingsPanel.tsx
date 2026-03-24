@@ -58,7 +58,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   return (
     <div className="border-b border-gray-800/40 bg-gray-900/50 animate-fade-in">
       <div className="px-4 py-3 space-y-3">
-        {/* Section header */}
+
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
             DM Relays
@@ -74,7 +74,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* Status */}
         {!isLoading && (
           <div>
             <div className="flex items-center gap-2">
@@ -98,7 +97,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* Relay list */}
         {!isLoading && !isPublished && (
           <p className="text-[10px] font-medium uppercase tracking-wider text-gray-600">Defaults</p>
         )}
@@ -123,7 +121,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        {/* Add relay */}
         <div className="flex gap-2">
           <input
             type="text"
@@ -148,19 +145,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* Relay count note */}
         {(!isPublished || currentRelays.length > 3) && (
           <p className="text-[10px] text-gray-600">
             1–3 relays recommended.
           </p>
         )}
 
-        {/* Error */}
         {error && (
           <p className="text-xs text-red-400" data-testid="settings-error">{error}</p>
         )}
 
-        {/* Actions */}
         {(!isPublished || hasChanges) && (
           <div className="pt-1">
             <button

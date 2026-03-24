@@ -1,5 +1,6 @@
 import type { PrivdmDatabase, StoredHandler } from './database';
 import type { HandlerInfo } from '../nip89/types';
+import { nowSeconds } from '../nip17/timestamp';
 
 export class DexieHandlerStore {
   constructor(private db: PrivdmDatabase) {}
@@ -13,7 +14,7 @@ export class DexieHandlerStore {
   }
 
   async saveAll(handlers: HandlerInfo[]): Promise<void> {
-    const now = Math.floor(Date.now() / 1000);
+    const now = nowSeconds();
     await this.db.transaction('rw', this.db.handlers, async () => {
       for (const h of handlers) {
         const id = `${h.pubkey}:${h.dTag}`;

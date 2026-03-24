@@ -6,6 +6,7 @@ import { useMyDMRelays } from './use-dm-relays';
 import { GiftWrapSubscriptionManager } from '@/lib/relay/subscription-manager';
 import { backfillGiftWraps } from '@/lib/relay/backfill';
 import { messageStore, readStateStore, profileStore } from '@/lib/storage/singleton';
+import { nowSeconds } from '@/lib/nip17/timestamp';
 import { QUERY_KEYS } from '@/lib/relay/query-keys';
 import type { Conversation } from '@/lib/relay/types';
 import type { ReadStateMap } from '@/lib/storage/read-state-store';
@@ -103,7 +104,7 @@ export function useGiftWrapSubscription(): ConnectionStatus {
       // Use 3-day window (2d randomization + 1d safety margin).
       // Backfill handles everything older.
       const THREE_DAYS = 3 * 24 * 60 * 60;
-      const since = Math.floor(Date.now() / 1000) - THREE_DAYS;
+      const since = nowSeconds() - THREE_DAYS;
 
       manager.seedProcessedWrapIds(wrapIds);
       manager.start({
@@ -119,7 +120,7 @@ export function useGiftWrapSubscription(): ConnectionStatus {
       // Run backfill in background
       const status = await messageStore.getBackfillStatus();
       const ONE_DAY = 24 * 60 * 60;
-      const now = Math.floor(Date.now() / 1000);
+      const now = nowSeconds();
 
       if (status.complete && status.completedAt !== null && now - status.completedAt <= ONE_DAY) {
         return;

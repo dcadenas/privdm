@@ -8,6 +8,7 @@ import type { MessageStore } from '../storage/message-store';
 import { unwrapGiftWrap } from '../nip17/unwrap';
 import type { DecryptedMessage, Conversation } from './types';
 import { QUERY_KEYS } from './query-keys';
+import { nowSeconds } from '../nip17/timestamp';
 
 export interface StartOptions {
   pool: SimplePool;
@@ -146,7 +147,7 @@ export class GiftWrapSubscriptionManager {
     const THREE_DAYS = 3 * 24 * 60 * 60;
     const since = this.lastEventTimestamp > 0
       ? this.lastEventTimestamp - RECONNECT_OVERLAP
-      : Math.floor(Date.now() / 1000) - THREE_DAYS;
+      : nowSeconds() - THREE_DAYS;
     this.start({ ...this.startOptions, since });
 
     // start() resets reconnectAttempts to 0; restore if this is an auto-reconnect

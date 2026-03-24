@@ -49,7 +49,7 @@ export function YouTubeThumbnail({ videoId, url }: { videoId: string; url: strin
         loading="lazy"
         className="max-w-full max-h-80 rounded-lg"
       />
-      {/* Play button overlay */}
+
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 group-hover:bg-red-600/90 transition-colors">
           <svg className="h-6 w-6 text-white ml-1" viewBox="0 0 24 24" fill="currentColor">

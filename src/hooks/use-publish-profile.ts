@@ -7,6 +7,7 @@ import { parseProfile } from './use-profile';
 import { DEFAULT_METADATA_RELAYS } from '@/lib/relay/defaults';
 import { QUERY_KEYS } from '@/lib/relay/query-keys';
 import { profileStore } from '@/lib/storage/singleton';
+import { nowSeconds } from '@/lib/nip17/timestamp';
 
 export function usePublishProfile() {
   const { signer, pubkey } = useAuth();
@@ -43,7 +44,7 @@ export function usePublishProfile() {
 
       const profile = parseProfile(merged);
       queryClient.setQueryData(QUERY_KEYS.profile(pubkey), profile);
-      void profileStore.save(pubkey, profile, Math.floor(Date.now() / 1000));
+      void profileStore.save(pubkey, profile, nowSeconds());
     },
   });
 }

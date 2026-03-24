@@ -166,10 +166,6 @@ export function parseContent(text: string): ContentSegment[] {
       if (trailing) {
         segments.push({ type: 'text', value: trailing });
       }
-      // Adjust regex lastIndex if we gave back trailing chars
-      if (trailing) {
-        TOKEN_RE.lastIndex = start + raw.length - trailing.length + trailing.length;
-      }
     }
 
     lastIndex = match.index + raw.length;

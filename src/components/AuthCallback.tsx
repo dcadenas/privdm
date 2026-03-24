@@ -1,20 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { exchangeCode } from 'divine-signer';
-import type { OAuthConfig } from 'divine-signer';
+import { getOAuthConfig } from '@/lib/auth/oauth-config';
 import { oauthStorage } from '@/lib/auth/oauth-storage';
 
 // Prevent double-execution from React StrictMode (codes are single-use)
 const usedCodes = new Set<string>();
-
-function getOAuthConfig(): OAuthConfig {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
-  return {
-    clientId: 'privdm',
-    redirectUri: `${origin}/auth/callback`,
-    storage: oauthStorage,
-  };
-}
 
 export function AuthCallback() {
   const { login } = useAuth();

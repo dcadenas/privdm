@@ -23,7 +23,6 @@ function AppContent() {
   useReadStateSync();
   useWebNotifications();
 
-  // Handle OAuth callback
   if (window.location.pathname === '/auth/callback') {
     return <AuthCallback />;
   }

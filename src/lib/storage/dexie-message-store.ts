@@ -1,6 +1,7 @@
 import type { DecryptedMessage, Conversation } from '../relay/types';
 import type { BackfillStatus, MessageStore } from './message-store';
 import type { PrivdmDatabase, StoredMessage, StoredConversation } from './database';
+import { nowSeconds } from '../nip17/timestamp';
 
 export class DexieMessageStore implements MessageStore {
   constructor(private db: PrivdmDatabase) {}
@@ -64,8 +65,8 @@ export class DexieMessageStore implements MessageStore {
   }
 
   async getWrapIds(): Promise<Set<string>> {
-    const messages = await this.db.messages.toArray();
-    return new Set(messages.map((m) => m.wrapId));
+    const keys = await this.db.messages.orderBy('wrapId').keys();
+    return new Set(keys as string[]);
   }
 
   async getSinceTimestamp(): Promise<number | undefined> {
@@ -88,7 +89,7 @@ export class DexieMessageStore implements MessageStore {
   }
 
   async setBackfillComplete(): Promise<void> {
-    const now = Math.floor(Date.now() / 1000);
+    const now = nowSeconds();
     await this.db.transaction('rw', this.db.syncMeta, async () => {
       await this.db.syncMeta.put({ key: 'backfillComplete', value: 1 });
       await this.db.syncMeta.put({ key: 'backfillCompletedAt', value: now });

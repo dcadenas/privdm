@@ -30,7 +30,6 @@ function shouldShowTimestamp(current: DecryptedMessage, next: DecryptedMessage |
   return (next.createdAt - current.createdAt) > 300;
 }
 
-// ─── Conversation List Item ─────────────────────────────────────
 const ConversationItem = memo(function ConversationItem({
   conversation,
   myPubkey,
@@ -80,10 +79,8 @@ const ConversationItem = memo(function ConversationItem({
   );
 });
 
-// ─── Dev Mode ───────────────────────────────────────────────────
-const isDevMode = () => new URLSearchParams(window.location.search).has('dev');
+const DEV_MODE = new URLSearchParams(window.location.search).has('dev');
 
-// ─── Copy Icon (shared) ────────────────────────────────────────
 function CopyIcon() {
   return (
     <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
@@ -101,7 +98,6 @@ function CheckIcon() {
   );
 }
 
-// ─── Copy Button ────────────────────────────────────────────────
 function CopyButton({ content, isMine }: { content: string; isMine: boolean }) {
   const [copied, setCopied] = useState(false);
 
@@ -125,7 +121,6 @@ function CopyButton({ content, isMine }: { content: string; isMine: boolean }) {
   );
 }
 
-// ─── Copy Raw Button (dev mode only) ────────────────────────────
 function CopyRawButton({ message, isMine }: { message: DecryptedMessage; isMine: boolean }) {
   const [copied, setCopied] = useState(false);
 
@@ -160,17 +155,14 @@ function CopyRawButton({ message, isMine }: { message: DecryptedMessage; isMine:
   );
 }
 
-// ─── Message Bubble ─────────────────────────────────────────────
 const MessageBubble = memo(function MessageBubble({
   message,
   isMine,
-  showSender,
   showTimestamp,
   isFirstInGroup,
 }: {
   message: DecryptedMessage;
   isMine: boolean;
-  showSender: boolean;
   showTimestamp: boolean;
   isFirstInGroup: boolean;
 }) {
@@ -185,7 +177,7 @@ const MessageBubble = memo(function MessageBubble({
   return (
     <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} ${isFirstInGroup ? '' : 'mt-0.5'}`}>
       <div className={`max-w-[75%] ${isMine ? 'items-end' : 'items-start'}`}>
-        {showSender && !isMine && (
+        {isFirstInGroup && !isMine && (
           <p className="mb-1 ml-1 text-[10px] text-gray-500">
             <DisplayName pubkey={message.senderPubkey} />
           </p>
@@ -201,7 +193,7 @@ const MessageBubble = memo(function MessageBubble({
         >
           <MessageContent content={message.content} isMine={isMine} />
           <div className="absolute bottom-1 right-1 flex gap-0.5">
-            {isDevMode() && <CopyRawButton message={message} isMine={isMine} />}
+            {DEV_MODE && <CopyRawButton message={message} isMine={isMine} />}
             <CopyButton content={message.content} isMine={isMine} />
           </div>
         </div>
@@ -220,7 +212,6 @@ const MessageBubble = memo(function MessageBubble({
   );
 });
 
-// ─── New Conversation Dialog ────────────────────────────────────
 function NewConversationDialog({
   onStart,
   onClose,
@@ -314,7 +305,6 @@ function NewConversationDialog({
   );
 }
 
-// ─── Message Area ───────────────────────────────────────────────
 function MessageArea({
   conversationId,
   myPubkey,
@@ -378,7 +368,6 @@ function MessageArea({
         {messages.map((msg, i) => {
           const prev = messages[i - 1];
           const next = messages[i + 1];
-          const showSender = !prev || prev.senderPubkey !== msg.senderPubkey;
           const isFirstInGroup = !prev || prev.senderPubkey !== msg.senderPubkey;
           const showTimestamp = shouldShowTimestamp(msg, next);
           return (
@@ -386,7 +375,6 @@ function MessageArea({
               <MessageBubble
                 message={msg}
                 isMine={msg.senderPubkey === myPubkey}
-                showSender={showSender}
                 showTimestamp={showTimestamp}
                 isFirstInGroup={isFirstInGroup}
               />
@@ -414,7 +402,6 @@ function MessageArea({
   );
 }
 
-// ─── Compose Area ───────────────────────────────────────────────
 function ComposeArea({
   recipientPubkeys,
   disabled,
@@ -489,7 +476,6 @@ function ComposeArea({
   );
 }
 
-// ─── Main Chat View ─────────────────────────────────────────────
 export function ChatView({ connectionStatus }: { connectionStatus: ConnectionStatus }) {
   const { pubkey } = useAuth();
   const { data: conversations = [] } = useConversations();
@@ -501,14 +487,12 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
 
   const selected = conversations.find((c) => c.id === selectedId);
 
-  // Mark conversation as read when opened or when new messages arrive in the open conversation
   useEffect(() => {
     if (!selectedId) return;
     const conv = conversations.find((c) => c.id === selectedId);
     if (conv) markRead(selectedId, conv.lastMessage.createdAt);
   }, [selectedId, conversations, markRead]);
 
-  // Update document title with unread count
   useEffect(() => {
     document.title = unreadCount > 0 ? `(${unreadCount}) PrivDM` : 'PrivDM';
   }, [unreadCount]);
@@ -541,12 +525,10 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
         onRetry={connectionStatus.reconnect}
       />
       <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar — full-width on mobile, fixed-width on desktop, collapsible */}
       <aside className={`flex w-full flex-col border-r border-gray-800/40 bg-gray-950
                          md:w-80 md:shrink-0 transition-all duration-200
                          ${showChat ? 'hidden' : 'flex'}
                          ${sidebarCollapsed ? 'md:hidden' : 'md:flex'}`}>
-        {/* Sidebar header — avatar + name on left, gear + compose on right */}
         <div className="flex items-center justify-between border-b border-gray-800/40 px-4 py-3.5">
           <AccountMenu />
           <div className="flex shrink-0 gap-1">
@@ -578,10 +560,8 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
           </div>
         </div>
 
-        {/* Settings panel (slides in below header) */}
         {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
 
-        {/* Conversation list */}
         <div className="flex-1 overflow-y-auto p-2" data-testid="conversation-list">
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -608,7 +588,6 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
           )}
         </div>
 
-        {/* Footer */}
         <div className="shrink-0 border-t border-gray-800/40 px-4 py-3 space-y-2">
           <p className="text-[10px] leading-relaxed text-gray-600">
             Messages are end-to-end encrypted using the Nostr protocol
@@ -632,13 +611,10 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
         </div>
       </aside>
 
-      {/* Main message area — full-width on mobile, flex on desktop */}
       <main className={`flex min-w-0 flex-1 flex-col overflow-hidden ${showChat ? 'flex' : 'hidden md:flex'}`}>
         {selectedId ? (
           <>
-            {/* Chat header */}
             <div className="flex items-center gap-3 border-b border-gray-800/40 px-4 py-3 md:px-5">
-              {/* Back button (mobile only) */}
               <button
                 onClick={() => setSelectedId(null)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400
@@ -649,7 +625,6 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                 </svg>
               </button>
-              {/* Sidebar toggle (desktop only) */}
               <button
                 onClick={() => setSidebarCollapsed((v) => !v)}
                 className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-gray-400
@@ -675,10 +650,8 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
               )}
             </div>
 
-            {/* Messages */}
             <MessageArea conversationId={selectedId} myPubkey={pubkey!} />
 
-            {/* Compose */}
             <ComposeArea recipientPubkeys={recipientPubkeys} disabled={!connectionStatus.isConnected} />
           </>
         ) : (
@@ -695,7 +668,6 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
       </main>
       </div>
 
-      {/* New conversation modal */}
       {showNewConv && (
         <NewConversationDialog
           onStart={startNewConversation}

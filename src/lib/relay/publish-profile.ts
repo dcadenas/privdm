@@ -1,5 +1,6 @@
 import type { SimplePool } from 'nostr-tools/pool';
 import type { NostrSigner } from 'divine-signer';
+import { nowSeconds } from '../nip17/timestamp';
 
 export interface RawProfile {
   rawJson: Record<string, unknown>;
@@ -65,7 +66,7 @@ export async function publishProfile(
     kind: 0,
     content: JSON.stringify(merged),
     tags: [],
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: nowSeconds(),
   });
 
   await Promise.any(pool.publish(broadcastRelays, event));

@@ -2,6 +2,7 @@ import type { EventTemplate } from 'nostr-tools/pure';
 import type { Filter } from 'nostr-tools/filter';
 import type { NostrSigner } from 'divine-signer';
 import type { ReadStateMap } from '@/lib/storage/read-state-store';
+import { nowSeconds } from '@/lib/nip17/timestamp';
 
 const D_TAG = 'privdm/read-state';
 const KIND_APP_DATA = 30078;
@@ -27,7 +28,7 @@ export async function decryptReadState(
 export function createReadStateEventTemplate(ciphertext: string): EventTemplate {
   return {
     kind: KIND_APP_DATA,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: nowSeconds(),
     tags: [['d', D_TAG]],
     content: ciphertext,
   };

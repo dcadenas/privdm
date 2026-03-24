@@ -1,6 +1,7 @@
 import type { SimplePool } from 'nostr-tools/pool';
 import type { NostrSigner } from 'divine-signer';
 import { normalizeRelayUrl } from './dm-relays';
+import { nowSeconds } from '../nip17/timestamp';
 
 export async function publishDMRelayList(
   signer: NostrSigner,
@@ -18,7 +19,7 @@ export async function publishDMRelayList(
     kind: 10050,
     content: '',
     tags: normalized.map((url) => ['relay', url]),
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: nowSeconds(),
   });
 
   // Publish to DM relays + broadcast relays, deduplicated
