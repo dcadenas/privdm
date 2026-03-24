@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type MouseEvent, type TouchEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, memo, type MouseEvent, type TouchEvent } from 'react';
 import { nip19, nip05 } from 'nostr-tools';
 import { useAuth } from '@/context/auth-context';
 import { useConversations } from '@/hooks/use-conversations';
@@ -31,7 +31,7 @@ function shouldShowTimestamp(current: DecryptedMessage, next: DecryptedMessage |
 }
 
 // ─── Conversation List Item ─────────────────────────────────────
-function ConversationItem({
+const ConversationItem = memo(function ConversationItem({
   conversation,
   myPubkey,
   isSelected,
@@ -78,7 +78,7 @@ function ConversationItem({
       </div>
     </button>
   );
-}
+});
 
 // ─── Dev Mode ───────────────────────────────────────────────────
 const isDevMode = () => new URLSearchParams(window.location.search).has('dev');
@@ -161,7 +161,7 @@ function CopyRawButton({ message, isMine }: { message: DecryptedMessage; isMine:
 }
 
 // ─── Message Bubble ─────────────────────────────────────────────
-function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   message,
   isMine,
   showSender,
@@ -218,7 +218,7 @@ function MessageBubble({
       </div>
     </div>
   );
-}
+});
 
 // ─── New Conversation Dialog ────────────────────────────────────
 function NewConversationDialog({
