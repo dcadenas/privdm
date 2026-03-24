@@ -22,6 +22,7 @@ export interface StartOptions {
 const RECONNECT_BASE_DELAY = 5_000;
 const RECONNECT_MAX_DELAY = 60_000;
 const RECONNECT_OVERLAP = 30; // seconds of overlap when resubscribing
+const LIVENESS_CHECK_INTERVAL = 90_000; // 90 seconds
 export class GiftWrapSubscriptionManager {
   private sub: SubCloser | null = null;
   private processedWrapIds = new Set<string>();
@@ -29,6 +30,8 @@ export class GiftWrapSubscriptionManager {
   private queue: Event[] = [];
   private startOptions: StartOptions | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
+  private livenessTimer: ReturnType<typeof setInterval> | null = null;
+  private lastEventReceivedAt = 0;
   private lastEventTimestamp = 0;
   private stopped = false;
   private restarting = false;
@@ -75,6 +78,7 @@ export class GiftWrapSubscriptionManager {
             console.log(`[subscription] first event after reconnect, resetting attempts (was ${this.reconnectAttempts})`);
           }
           this.reconnectAttempts = 0;
+          this.lastEventReceivedAt = Date.now();
           this.lastEventTimestamp = Math.max(this.lastEventTimestamp, event.created_at);
           this.queue.push(event);
           void this.processQueue(signer, queryClient, store);
@@ -103,6 +107,17 @@ export class GiftWrapSubscriptionManager {
         },
       } as never,
     );
+
+    this.lastEventReceivedAt = Date.now();
+    if (this.livenessTimer) clearInterval(this.livenessTimer);
+    this.livenessTimer = setInterval(() => {
+      if (this.stopped) return;
+      const elapsed = Date.now() - this.lastEventReceivedAt;
+      if (elapsed >= LIVENESS_CHECK_INTERVAL) {
+        console.warn(`[subscription] no events for ${Math.round(elapsed / 1000)}s, forcing reconnect`);
+        this.reconnectRestart(true);
+      }
+    }, LIVENESS_CHECK_INTERVAL);
   }
 
   restart(): void {
@@ -149,6 +164,7 @@ export class GiftWrapSubscriptionManager {
     this.processedWrapIds.clear();
     this.lastEventTimestamp = 0;
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
+    if (this.livenessTimer) { clearInterval(this.livenessTimer); this.livenessTimer = null; }
   }
 
   isRunning(): boolean {

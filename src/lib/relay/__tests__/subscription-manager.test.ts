@@ -556,6 +556,71 @@ describe('GiftWrapSubscriptionManager', () => {
     expect(conversations).toBeUndefined();
   });
 
+  it('forces reconnect when no events received within liveness interval', () => {
+    vi.useFakeTimers();
+
+    const mockPool = {
+      close: vi.fn(),
+      subscribeMany: vi.fn((_relays: string[], _filters: unknown, _opts: unknown) => {
+        return { close: vi.fn() };
+      }),
+    };
+
+    manager.start({
+      pool: mockPool as never,
+      userPubkey: 'pub',
+      dmRelays: ['wss://r'],
+      signer: {} as never,
+      queryClient,
+    });
+
+    expect(mockPool.subscribeMany).toHaveBeenCalledTimes(1);
+
+    // Advance past the liveness interval (default 90s) without any events
+    vi.advanceTimersByTime(91_000);
+
+    // Should have reconnected
+    expect(mockPool.subscribeMany).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+
+  it('does not force reconnect if events are flowing', async () => {
+    vi.useFakeTimers();
+
+    const alice = makeSigner();
+    const bob = makeSigner();
+
+    let onEvent: ((event: unknown) => void) | undefined;
+    const mockPool = {
+      close: vi.fn(),
+      subscribeMany: vi.fn((_relays: string[], _filters: unknown, opts: { onevent: (event: unknown) => void }) => {
+        onEvent = opts.onevent;
+        return { close: vi.fn() };
+      }),
+    };
+
+    manager.start({
+      pool: mockPool as never,
+      userPubkey: bob.pubkey,
+      dmRelays: ['wss://r'],
+      signer: bob.signer,
+      queryClient,
+    });
+
+    // Send an event halfway through the liveness interval
+    const { wraps } = await createGiftWraps(alice.signer, [{ pubkey: bob.pubkey }], 'alive');
+    vi.advanceTimersByTime(45_000);
+    onEvent!(wraps[0]!);
+
+    // Advance the rest -- should NOT reconnect since last event was recent
+    vi.advanceTimersByTime(46_000);
+
+    expect(mockPool.subscribeMany).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
   it('retries indefinitely on close (no max attempts cap)', () => {
     vi.useFakeTimers();
 
