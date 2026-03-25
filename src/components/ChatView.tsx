@@ -342,10 +342,8 @@ function MessageArea({
 
     const lastMsg = messages[messages.length - 1];
     const isMine = lastMsg?.senderPubkey === myPubkey;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const isNearBottom = distanceFromBottom < 150;
 
-    if (isMine || isNearBottom || !prevLastMsgId) {
+    if (isMine || !showScrollDown || !prevLastMsgId) {
       el.scrollTo({ top: el.scrollHeight, behavior: prevLastMsgId ? 'smooth' : 'auto' });
     }
   }, [lastMsgId, myPubkey, messages]);
