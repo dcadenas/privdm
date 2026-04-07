@@ -59,6 +59,11 @@
 }
 
 /* Markdown in chat messages */
+.markdown-inline p { margin: 0.5em 0; }
+.markdown-inline p:first-child { margin-top: 0; }
+.markdown-inline p:last-child { margin-bottom: 0; }
+.markdown-inline ul, .markdown-inline ol { margin: 0.4em 0; padding-left: 1.5em; }
+.markdown-inline li { margin: 0.1em 0; }
 .markdown-inline strong { font-weight: 600; }
 .markdown-inline em { font-style: italic; }
 .markdown-inline del { text-decoration: line-through; }
