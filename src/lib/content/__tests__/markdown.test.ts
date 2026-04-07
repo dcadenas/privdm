@@ -71,4 +71,24 @@ describe('renderMarkdown', () => {
     const result = renderMarkdown('<script>alert("xss")</script>');
     expect(result).not.toContain('<script');
   });
+
+  it('strips formatting newlines between block-level tags', () => {
+    const result = renderMarkdown('- item1\n- item2');
+    expect(result).not.toMatch(/>\n+</);
+    expect(result).toContain('<li>');
+    expect(result).toContain('item1');
+    expect(result).toContain('item2');
+  });
+
+  it('strips formatting newlines between paragraphs', () => {
+    const result = renderMarkdown('para1\n\npara2');
+    expect(result).not.toMatch(/>\n+</);
+    expect(result).toContain('para1');
+    expect(result).toContain('para2');
+  });
+
+  it('preserves newlines inside text content', () => {
+    const result = renderMarkdown('line1\nline2');
+    expect(result).toContain('line1\nline2');
+  });
 });

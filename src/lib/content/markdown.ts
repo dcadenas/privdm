@@ -18,6 +18,11 @@ export function renderMarkdown(text: string): string {
 
   let result = html.replace(DANGEROUS_TAG, '').trim();
 
+  // Strip formatting newlines between HTML tags. Micromark inserts \n between
+  // block-level elements (e.g. </li>\n<li>, <ul>\n<li>). With the parent's
+  // whitespace-pre-wrap these would render as visible line breaks.
+  result = result.replace(/>\n+</g, '><');
+
   // Remove outer <p>...</p> wrapper if the entire output is a single paragraph
   if (result.startsWith('<p>') && result.endsWith('</p>')) {
     const inner = result.slice(3, -4);
