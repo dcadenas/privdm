@@ -293,6 +293,74 @@ describe('GiftWrapSubscriptionManager', () => {
     });
   });
 
+  it('restart() replays the three-day window so later wraps with older timestamps are recovered', async () => {
+    const alice = makeSigner();
+    const bob = makeSigner();
+    const threeDays = 3 * 24 * 60 * 60;
+    const twoDays = 2 * 24 * 60 * 60;
+
+    const { wraps: recentWraps } = await createGiftWraps(
+      alice.signer,
+      [{ pubkey: bob.pubkey }],
+      'newer outer timestamp',
+    );
+    const { wraps: olderWraps } = await createGiftWraps(
+      alice.signer,
+      [{ pubkey: bob.pubkey }],
+      'later published with older outer timestamp',
+    );
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const recentWrap = { ...recentWraps[0]!, created_at: currentTimestamp };
+    const olderWrap = { ...olderWraps[0]!, created_at: currentTimestamp - twoDays };
+
+    const subscriptions: Array<{
+      filter: { since?: number };
+      onevent: (event: typeof recentWrap) => void;
+    }> = [];
+    const mockPool = {
+      close: vi.fn(),
+      subscribeMany: vi.fn((
+        _relays: string[],
+        filter: { since?: number },
+        opts: { onevent: (event: typeof recentWrap) => void },
+      ) => {
+        subscriptions.push({ filter, onevent: opts.onevent });
+        return { close: vi.fn() };
+      }),
+    };
+
+    manager.start({
+      pool: mockPool as never,
+      userPubkey: bob.pubkey,
+      dmRelays: ['wss://test.relay'],
+      signer: bob.signer,
+      queryClient,
+      since: currentTimestamp - threeDays,
+    });
+
+    subscriptions[0]!.onevent(recentWrap);
+    await vi.waitFor(() => {
+      const convs = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
+      expect(convs).toHaveLength(1);
+    });
+
+    const earliestExpectedSince = Math.floor(Date.now() / 1000) - threeDays;
+    manager.restart();
+    const latestExpectedSince = Math.floor(Date.now() / 1000) - threeDays;
+
+    expect(subscriptions[1]!.filter.since).toBeGreaterThanOrEqual(earliestExpectedSince);
+    expect(subscriptions[1]!.filter.since).toBeLessThanOrEqual(latestExpectedSince);
+
+    if (olderWrap.created_at >= subscriptions[1]!.filter.since!) {
+      subscriptions[1]!.onevent(olderWrap);
+    }
+
+    await vi.waitFor(() => {
+      const convs = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
+      expect(convs?.[0]?.messageCount).toBe(2);
+    });
+  });
+
   it('restart() is a no-op if never started', () => {
     // Should not throw
     manager.restart();

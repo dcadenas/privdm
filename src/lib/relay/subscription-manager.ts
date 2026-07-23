@@ -22,7 +22,7 @@ export interface StartOptions {
 
 const RECONNECT_BASE_DELAY = 5_000;
 const RECONNECT_MAX_DELAY = 60_000;
-const RECONNECT_OVERLAP = 30; // seconds of overlap when resubscribing
+const RECONNECT_REPLAY_WINDOW = 3 * 24 * 60 * 60;
 const LIVENESS_CHECK_INTERVAL = 90_000; // 90 seconds
 export class GiftWrapSubscriptionManager {
   private sub: SubCloser | null = null;
@@ -144,10 +144,7 @@ export class GiftWrapSubscriptionManager {
     // After sleep/wake, existing connections are likely dead/zombie.
     pool.close(dmRelays);
 
-    const THREE_DAYS = 3 * 24 * 60 * 60;
-    const since = this.lastEventTimestamp > 0
-      ? this.lastEventTimestamp - RECONNECT_OVERLAP
-      : nowSeconds() - THREE_DAYS;
+    const since = nowSeconds() - RECONNECT_REPLAY_WINDOW;
     this.start({ ...this.startOptions, since });
 
     // start() resets reconnectAttempts to 0; restore if this is an auto-reconnect
