@@ -209,6 +209,7 @@ describe('backfillGiftWraps', () => {
       return [];
     }));
 
+    const processedWrapIds = new Set<string>();
     const result = await backfillGiftWraps({
       pool: mockPool as never,
       userPubkey: bob.pubkey,
@@ -216,10 +217,11 @@ describe('backfillGiftWraps', () => {
       signer: bob.signer,
       queryClient,
       store,
-      processedWrapIds: new Set(),
+      processedWrapIds,
     });
 
     expect(result.eventsProcessed).toBe(0);
+    expect(processedWrapIds.has(wraps[0]!.id)).toBe(true);
 
     const convs = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
     expect(convs).toBeUndefined();
@@ -327,6 +329,7 @@ describe('backfillGiftWraps', () => {
     }));
 
     const store = makeMockStore();
+    const processedWrapIds = new Set<string>();
 
     const result = await backfillGiftWraps({
       pool: mockPool as never,
@@ -335,12 +338,47 @@ describe('backfillGiftWraps', () => {
       signer: charlie.signer,
       queryClient,
       store,
-      processedWrapIds: new Set(),
+      processedWrapIds,
     });
 
     expect(result.complete).toBe(true);
     expect(result.eventsProcessed).toBe(0);
     expect(store.saveMessage).not.toHaveBeenCalled();
+    expect(processedWrapIds.has(wraps[0]!.id)).toBe(false);
+  });
+
+  it('leaves a wrap retryable when storage throws', async () => {
+    const alice = makeSigner();
+    const bob = makeSigner();
+
+    const { wraps } = await createGiftWraps(
+      alice.signer,
+      [{ pubkey: bob.pubkey }],
+      'retry storage',
+    );
+
+    const store = makeMockStore();
+    (store.saveMessage as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(new Error('IndexedDB unavailable'));
+    const processedWrapIds = new Set<string>();
+    let callCount = 0;
+    const mockPool = makeMockPool(vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return [wraps[0]!];
+      return [];
+    }));
+
+    await expect(backfillGiftWraps({
+      pool: mockPool as never,
+      userPubkey: bob.pubkey,
+      dmRelays: ['wss://test.relay'],
+      signer: bob.signer,
+      queryClient,
+      store,
+      processedWrapIds,
+    })).rejects.toThrow('IndexedDB unavailable');
+
+    expect(processedWrapIds.has(wraps[0]!.id)).toBe(false);
   });
 
   it('adds wrapIds to shared set', async () => {

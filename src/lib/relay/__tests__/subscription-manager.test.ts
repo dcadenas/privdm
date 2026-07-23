@@ -293,6 +293,74 @@ describe('GiftWrapSubscriptionManager', () => {
     });
   });
 
+  it('restart() replays the three-day window so later wraps with older timestamps are recovered', async () => {
+    const alice = makeSigner();
+    const bob = makeSigner();
+    const threeDays = 3 * 24 * 60 * 60;
+    const twoDays = 2 * 24 * 60 * 60;
+
+    const { wraps: recentWraps } = await createGiftWraps(
+      alice.signer,
+      [{ pubkey: bob.pubkey }],
+      'newer outer timestamp',
+    );
+    const { wraps: olderWraps } = await createGiftWraps(
+      alice.signer,
+      [{ pubkey: bob.pubkey }],
+      'later published with older outer timestamp',
+    );
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const recentWrap = { ...recentWraps[0]!, created_at: currentTimestamp };
+    const olderWrap = { ...olderWraps[0]!, created_at: currentTimestamp - twoDays };
+
+    const subscriptions: Array<{
+      filter: { since?: number };
+      onevent: (event: typeof recentWrap) => void;
+    }> = [];
+    const mockPool = {
+      close: vi.fn(),
+      subscribeMany: vi.fn((
+        _relays: string[],
+        filter: { since?: number },
+        opts: { onevent: (event: typeof recentWrap) => void },
+      ) => {
+        subscriptions.push({ filter, onevent: opts.onevent });
+        return { close: vi.fn() };
+      }),
+    };
+
+    manager.start({
+      pool: mockPool as never,
+      userPubkey: bob.pubkey,
+      dmRelays: ['wss://test.relay'],
+      signer: bob.signer,
+      queryClient,
+      since: currentTimestamp - threeDays,
+    });
+
+    subscriptions[0]!.onevent(recentWrap);
+    await vi.waitFor(() => {
+      const convs = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
+      expect(convs).toHaveLength(1);
+    });
+
+    const earliestExpectedSince = Math.floor(Date.now() / 1000) - threeDays;
+    manager.restart();
+    const latestExpectedSince = Math.floor(Date.now() / 1000) - threeDays;
+
+    expect(subscriptions[1]!.filter.since).toBeGreaterThanOrEqual(earliestExpectedSince);
+    expect(subscriptions[1]!.filter.since).toBeLessThanOrEqual(latestExpectedSince);
+
+    if (olderWrap.created_at >= subscriptions[1]!.filter.since!) {
+      subscriptions[1]!.onevent(olderWrap);
+    }
+
+    await vi.waitFor(() => {
+      const convs = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
+      expect(convs?.[0]?.messageCount).toBe(2);
+    });
+  });
+
   it('restart() is a no-op if never started', () => {
     // Should not throw
     manager.restart();
@@ -303,6 +371,7 @@ describe('GiftWrapSubscriptionManager', () => {
     const alice = makeSigner();
     const bob = makeSigner();
     const charlie = makeSigner();
+    const decryptSpy = vi.spyOn(charlie.signer, 'nip44Decrypt');
 
     // Wrap for bob, but try to decrypt with charlie's signer
     const { wraps } = await createGiftWraps(
@@ -330,15 +399,60 @@ describe('GiftWrapSubscriptionManager', () => {
 
     onEvent!(wraps[0]!);
 
-    // Wait for async processing to complete (event is processed but decryption fails)
-    await vi.waitFor(() => expect(manager.processedCount).toBe(1));
+    await vi.waitFor(() => expect(decryptSpy).toHaveBeenCalled());
 
     // Give a tick for any pending cache writes (there should be none)
     await new Promise((r) => setTimeout(r, 50));
 
+    expect(manager.processedCount).toBe(0);
+
     // No conversations should be created since decryption fails
     const conversations = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
     expect(conversations).toBeUndefined();
+  });
+
+  it('retries the same wrap after a transient decryption failure', async () => {
+    const alice = makeSigner();
+    const bob = makeSigner();
+    const originalDecrypt = bob.signer.nip44Decrypt.bind(bob.signer);
+    const decryptSpy = vi.spyOn(bob.signer, 'nip44Decrypt')
+      .mockRejectedValueOnce(new Error('signer bridge unavailable'))
+      .mockImplementation(originalDecrypt);
+
+    const { wraps } = await createGiftWraps(
+      alice.signer,
+      [{ pubkey: bob.pubkey }],
+      'retry decrypt',
+    );
+    const bobWrap = wraps[0]!;
+
+    let onEvent: ((event: typeof bobWrap) => void) | undefined;
+    const mockPool = {
+      close: vi.fn(),
+      subscribeMany: vi.fn((_relays, _filters, opts) => {
+        onEvent = opts.onevent;
+        return { close: vi.fn() };
+      }),
+    };
+
+    manager.start({
+      pool: mockPool as never,
+      userPubkey: bob.pubkey,
+      dmRelays: ['wss://test.relay'],
+      signer: bob.signer,
+      queryClient,
+    });
+
+    onEvent!(bobWrap);
+    onEvent!(bobWrap);
+
+    await vi.waitFor(() => {
+      const convs = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
+      expect(convs?.[0]?.lastMessage.content).toBe('retry decrypt');
+    });
+
+    expect(decryptSpy).toHaveBeenCalledTimes(3);
+    expect(manager.processedCount).toBe(1);
   });
 
   it('passes since filter to subscribeMany when provided', () => {
@@ -515,6 +629,51 @@ describe('GiftWrapSubscriptionManager', () => {
     );
   });
 
+  it('retries the same wrap after a transient storage failure', async () => {
+    const alice = makeSigner();
+    const bob = makeSigner();
+    const store = makeMockStore();
+    (store.saveMessage as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(new Error('IndexedDB unavailable'))
+      .mockResolvedValue(true);
+
+    const { wraps } = await createGiftWraps(
+      alice.signer,
+      [{ pubkey: bob.pubkey }],
+      'retry storage',
+    );
+    const bobWrap = wraps[0]!;
+
+    let onEvent: ((event: typeof bobWrap) => void) | undefined;
+    const mockPool = {
+      close: vi.fn(),
+      subscribeMany: vi.fn((_relays, _filters, opts) => {
+        onEvent = opts.onevent;
+        return { close: vi.fn() };
+      }),
+    };
+
+    manager.start({
+      pool: mockPool as never,
+      userPubkey: bob.pubkey,
+      dmRelays: ['wss://test.relay'],
+      signer: bob.signer,
+      queryClient,
+      store,
+    });
+
+    onEvent!(bobWrap);
+    onEvent!(bobWrap);
+
+    await vi.waitFor(() => {
+      const convs = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
+      expect(convs?.[0]?.lastMessage.content).toBe('retry storage');
+    });
+
+    expect(store.saveMessage).toHaveBeenCalledTimes(2);
+    expect(manager.processedCount).toBe(1);
+  });
+
   it('skips cache update when store reports duplicate', async () => {
     const alice = makeSigner();
     const bob = makeSigner();
@@ -547,9 +706,12 @@ describe('GiftWrapSubscriptionManager', () => {
     });
 
     onEvent!(bobWrap);
+    onEvent!(bobWrap);
 
     await vi.waitFor(() => expect(manager.processedCount).toBe(1));
     await new Promise((r) => setTimeout(r, 50));
+
+    expect(store.saveMessage).toHaveBeenCalledTimes(1);
 
     // Cache should NOT be updated since store said duplicate
     const conversations = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
