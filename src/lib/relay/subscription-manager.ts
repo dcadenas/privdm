@@ -190,7 +190,6 @@ export class GiftWrapSubscriptionManager {
         const event = this.queue.shift()!;
 
         if (this.processedWrapIds.has(event.id)) continue;
-        this.processedWrapIds.add(event.id);
 
         try {
           // Pool verifies events before delivering them
@@ -214,8 +213,9 @@ export class GiftWrapSubscriptionManager {
           });
 
           await insertMessage(queryClient, message, store, event.created_at);
+          this.processedWrapIds.add(event.id);
         } catch {
-          // Skip events we can't decrypt (not addressed to us, corrupted, etc.)
+          // Leave decrypt and storage failures retryable on later delivery.
         }
       }
     } finally {

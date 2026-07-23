@@ -142,7 +142,6 @@ export async function backfillGiftWraps(options: BackfillOptions): Promise<Backf
     for (const event of events) {
       if (signal?.aborted) break;
       if (processedWrapIds.has(event.id)) continue;
-      processedWrapIds.add(event.id);
 
       try {
         const unwrapped = await unwrapGiftWrap(signer, event as VerifiedEvent);
@@ -165,7 +164,9 @@ export async function backfillGiftWraps(options: BackfillOptions): Promise<Backf
     let inserted = 0;
     const uiMessages: DecryptedMessage[] = [];
     for (const { message, wrapCreatedAt } of batchMessages) {
+      if (processedWrapIds.has(message.wrapId)) continue;
       const saved = await store.saveMessage(message, wrapCreatedAt);
+      processedWrapIds.add(message.wrapId);
       if (!saved) continue;
       uiMessages.push(message);
       inserted++;
