@@ -41,6 +41,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
   afterEach(() => {
     manager.stop();
+    vi.useRealTimers();
   });
 
   it('unwraps a gift wrap and inserts into query cache', async () => {
@@ -297,6 +298,45 @@ describe('GiftWrapSubscriptionManager', () => {
     // Should not throw
     manager.restart();
     expect(manager.isRunning()).toBe(false);
+  });
+
+  it('ignores a delayed close from the subscription replaced by restart', async () => {
+    vi.useFakeTimers();
+
+    let subscriptionIndex = 0;
+    const mockPool = {
+      close: vi.fn(),
+      subscribeMany: vi.fn((
+        _relays: string[],
+        _filters: unknown,
+        opts: { onclose: (results: { url: string; reason: string }[]) => void },
+      ) => {
+        const index = subscriptionIndex++;
+        return {
+          close: vi.fn(() => {
+            if (index === 0) {
+              void Promise.resolve().then(() => {
+                opts.onclose([{ url: 'wss://r', reason: 'closed by caller' }]);
+              });
+            }
+          }),
+        };
+      }),
+    };
+
+    manager.start({
+      pool: mockPool as never,
+      userPubkey: 'pub',
+      dmRelays: ['wss://r'],
+      signer: {} as never,
+      queryClient,
+    });
+    manager.restart();
+
+    await Promise.resolve();
+    vi.advanceTimersByTime(5_000);
+
+    expect(mockPool.subscribeMany).toHaveBeenCalledTimes(2);
   });
 
   it('silently skips events that fail to decrypt', async () => {
@@ -556,12 +596,12 @@ describe('GiftWrapSubscriptionManager', () => {
     expect(conversations).toBeUndefined();
   });
 
-  it('forces reconnect when no events received within liveness interval', () => {
+  it('does not reconnect a quiet subscription', () => {
     vi.useFakeTimers();
 
     const mockPool = {
       close: vi.fn(),
-      subscribeMany: vi.fn((_relays: string[], _filters: unknown, _opts: unknown) => {
+      subscribeMany: vi.fn(() => {
         return { close: vi.fn() };
       }),
     };
@@ -576,58 +616,23 @@ describe('GiftWrapSubscriptionManager', () => {
 
     expect(mockPool.subscribeMany).toHaveBeenCalledTimes(1);
 
-    // Advance past the liveness interval (default 90s) without any events
-    vi.advanceTimersByTime(91_000);
-
-    // Should have reconnected
-    expect(mockPool.subscribeMany).toHaveBeenCalledTimes(2);
-
-    vi.useRealTimers();
-  });
-
-  it('does not force reconnect if events are flowing', async () => {
-    vi.useFakeTimers();
-
-    const alice = makeSigner();
-    const bob = makeSigner();
-
-    let onEvent: ((event: unknown) => void) | undefined;
-    const mockPool = {
-      close: vi.fn(),
-      subscribeMany: vi.fn((_relays: string[], _filters: unknown, opts: { onevent: (event: unknown) => void }) => {
-        onEvent = opts.onevent;
-        return { close: vi.fn() };
-      }),
-    };
-
-    manager.start({
-      pool: mockPool as never,
-      userPubkey: bob.pubkey,
-      dmRelays: ['wss://r'],
-      signer: bob.signer,
-      queryClient,
-    });
-
-    // Send an event halfway through the liveness interval
-    const { wraps } = await createGiftWraps(alice.signer, [{ pubkey: bob.pubkey }], 'alive');
-    vi.advanceTimersByTime(45_000);
-    onEvent!(wraps[0]!);
-
-    // Advance the rest -- should NOT reconnect since last event was recent
-    vi.advanceTimersByTime(46_000);
+    // A quiet inbox is healthy. nostr-tools owns transport-level ping/reconnect.
+    vi.advanceTimersByTime(10 * 60_000);
 
     expect(mockPool.subscribeMany).toHaveBeenCalledTimes(1);
-
-    vi.useRealTimers();
   });
 
   it('retries indefinitely on close (no max attempts cap)', () => {
     vi.useFakeTimers();
 
-    let onClose: ((reasons: string[]) => void) | undefined;
+    let onClose: ((results: { url: string; reason: string }[]) => void) | undefined;
     const mockPool = {
       close: vi.fn(),
-      subscribeMany: vi.fn((_relays: string[], _filters: unknown, opts: { onclose: (reasons: string[]) => void }) => {
+      subscribeMany: vi.fn((
+        _relays: string[],
+        _filters: unknown,
+        opts: { onclose: (results: { url: string; reason: string }[]) => void },
+      ) => {
         onClose = opts.onclose;
         return { close: vi.fn() };
       }),
@@ -643,7 +648,7 @@ describe('GiftWrapSubscriptionManager', () => {
 
     // Simulate 15 consecutive closes (previously would have stopped at 10)
     for (let i = 0; i < 15; i++) {
-      onClose!(['relay connection closed']);
+      onClose!([{ url: 'wss://r', reason: 'relay connection closed' }]);
       vi.advanceTimersByTime(60_000); // advance past max backoff
     }
 

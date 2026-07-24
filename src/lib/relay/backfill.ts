@@ -10,8 +10,10 @@ import { insertMessages } from './subscription-manager';
 
 export const BACKFILL_RETRY_DELAYS = [2_000, 4_000, 8_000];
 
-function isRateLimited(reasons: string[]): boolean {
-  return reasons.some(r => r && r.startsWith('rate-limited:'));
+type RelayCloseResult = { url: string; reason: string };
+
+function isRateLimited(results: RelayCloseResult[]): boolean {
+  return results.some(({ reason }) => reason.startsWith('rate-limited:'));
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -29,25 +31,27 @@ async function queryWithRetry(
   signal?: AbortSignal,
 ): Promise<Event[]> {
   for (let attempt = 0; ; attempt++) {
-    const { events, closeReasons } = await new Promise<{ events: Event[]; closeReasons: string[] }>(resolve => {
+    const { events, closeResults } = await new Promise<{
+      events: Event[];
+      closeResults: RelayCloseResult[];
+    }>(resolve => {
       const collected: Event[] = [];
-      let sub: { close: (reason?: string) => void };
-      sub = pool.subscribeMany(relays, filter, {
+      const sub = pool.subscribeMany(relays, filter, {
         onevent(event: Event) { collected.push(event); },
         oneose() { sub.close(); },
-        onclose(reasons: string[]) {
-          for (const reason of reasons) {
+        onclose(results: RelayCloseResult[]) {
+          for (const { url, reason } of results) {
             if (reason && !reason.startsWith('closed')) {
-              console.warn('[backfill] relay closed subscription:', reason);
+              console.warn('[backfill] relay closed subscription:', { url, reason });
             }
           }
-          resolve({ events: collected, closeReasons: reasons });
+          resolve({ events: collected, closeResults: results });
         },
         maxWait: 15_000,
-      } as never);
+      });
     });
 
-    if (!isRateLimited(closeReasons) || attempt >= BACKFILL_RETRY_DELAYS.length) {
+    if (!isRateLimited(closeResults) || attempt >= BACKFILL_RETRY_DELAYS.length) {
       return events;
     }
 

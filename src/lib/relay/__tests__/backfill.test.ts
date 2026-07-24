@@ -10,8 +10,8 @@ import type { Conversation } from '../types';
 import type { MessageStore } from '../../storage/message-store';
 
 interface MockPoolOptions {
-  /** Override close reasons per call. Return string[] to use as onclose reasons. */
-  closeReasons?: (callIndex: number) => string[];
+  /** Override relay close results per call. */
+  closeReasons?: (callIndex: number) => { url: string; reason: string }[];
 }
 
 /**
@@ -25,7 +25,7 @@ function makeMockPool(querySyncFn: ReturnType<typeof vi.fn>, options?: MockPoolO
     subscribeMany: vi.fn().mockImplementation((_relays: string[], filter: unknown, params: {
       onevent: (e: Event) => void;
       oneose: () => void;
-      onclose: (reasons: string[]) => void;
+      onclose: (results: { url: string; reason: string }[]) => void;
     }) => {
       const idx = callIndex++;
       filterCalls.push(filter as Record<string, unknown>);
@@ -449,7 +449,9 @@ describe('backfillGiftWraps', () => {
       }),
       {
         closeReasons: (idx) =>
-          idx === 0 ? ['rate-limited: slow down'] : [],
+          idx === 0
+            ? [{ url: 'wss://test.relay', reason: 'rate-limited: slow down' }]
+            : [],
       },
     );
 
@@ -475,7 +477,10 @@ describe('backfillGiftWraps', () => {
     const mockPool = makeMockPool(
       vi.fn().mockReturnValue([]),
       {
-        closeReasons: () => ['rate-limited: too many requests'],
+        closeReasons: () => [{
+          url: 'wss://test.relay',
+          reason: 'rate-limited: too many requests',
+        }],
       },
     );
 

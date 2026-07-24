@@ -14,7 +14,23 @@ function makePool(event: unknown = null) {
   return {
     get: vi.fn().mockResolvedValue(event),
     publish: vi.fn(() => [Promise.resolve('ok')]),
-  } as any;
+  };
+}
+
+function firstPublishCall(pool: ReturnType<typeof makePool>): [string[], {
+  kind: number;
+  content: string;
+  pubkey?: string;
+  sig?: string;
+}] {
+  const call = pool.publish.mock.calls[0];
+  if (!call) throw new Error('publish was not called');
+  return call as unknown as [string[], {
+    kind: number;
+    content: string;
+    pubkey?: string;
+    sig?: string;
+  }];
 }
 
 describe('fetchRawProfile', () => {
@@ -26,7 +42,7 @@ describe('fetchRawProfile', () => {
       created_at: 1700000000,
     });
 
-    const result = await fetchRawProfile(pool, 'aabbcc', ['wss://relay.test']);
+    const result = await fetchRawProfile(pool as never, 'aabbcc', ['wss://relay.test']);
 
     expect(result).toEqual({ rawJson: raw, createdAt: 1700000000 });
     expect(pool.get).toHaveBeenCalledWith(['wss://relay.test'], {
@@ -37,7 +53,7 @@ describe('fetchRawProfile', () => {
 
   it('returns null when no event found', async () => {
     const pool = makePool(null);
-    const result = await fetchRawProfile(pool, 'aabbcc', ['wss://relay.test']);
+    const result = await fetchRawProfile(pool as never, 'aabbcc', ['wss://relay.test']);
     expect(result).toBeNull();
   });
 
@@ -47,7 +63,7 @@ describe('fetchRawProfile', () => {
       content: 'not json',
       created_at: 1700000000,
     });
-    const result = await fetchRawProfile(pool, 'aabbcc', ['wss://relay.test']);
+    const result = await fetchRawProfile(pool as never, 'aabbcc', ['wss://relay.test']);
     expect(result).toBeNull();
   });
 });
@@ -57,10 +73,10 @@ describe('publishProfile', () => {
     const signer = makeSigner();
     const pool = makePool();
 
-    await publishProfile(signer, pool, { name: 'bob' }, null, ['wss://relay.test']);
+    await publishProfile(signer, pool as never, { name: 'bob' }, null, ['wss://relay.test']);
 
     expect(pool.publish).toHaveBeenCalledTimes(1);
-    const [relays, event] = pool.publish.mock.calls[0]!;
+    const [relays, event] = firstPublishCall(pool);
 
     expect(relays).toContain('wss://relay.test');
     expect(event.kind).toBe(0);
@@ -81,13 +97,13 @@ describe('publishProfile', () => {
 
     await publishProfile(
       signer,
-      pool,
+      pool as never,
       { name: 'new-name', about: 'hello' },
       existingRaw,
       ['wss://relay.test'],
     );
 
-    const [, event] = pool.publish.mock.calls[0]!;
+    const [, event] = firstPublishCall(pool);
     const content = JSON.parse(event.content);
 
     expect(content.name).toBe('new-name');
@@ -104,13 +120,13 @@ describe('publishProfile', () => {
 
     await publishProfile(
       signer,
-      pool,
+      pool as never,
       { displayName: 'Alice W' },
       null,
       ['wss://relay.test'],
     );
 
-    const [, event] = pool.publish.mock.calls[0]!;
+    const [, event] = firstPublishCall(pool);
     const content = JSON.parse(event.content);
 
     expect(content.display_name).toBe('Alice W');
@@ -124,13 +140,13 @@ describe('publishProfile', () => {
 
     await publishProfile(
       signer,
-      pool,
+      pool as never,
       { about: '' },
       existingRaw,
       ['wss://relay.test'],
     );
 
-    const [, event] = pool.publish.mock.calls[0]!;
+    const [, event] = firstPublishCall(pool);
     const content = JSON.parse(event.content);
 
     expect(content.about).toBeUndefined();
@@ -142,9 +158,9 @@ describe('publishProfile', () => {
     const signer = makeSigner();
     const pool = makePool();
 
-    await publishProfile(signer, pool, { name: 'test' }, null, ['wss://relay.test']);
+    await publishProfile(signer, pool as never, { name: 'test' }, null, ['wss://relay.test']);
 
-    const [, event] = pool.publish.mock.calls[0]!;
+    const [, event] = firstPublishCall(pool);
     const pubkey = await signer.getPublicKey();
     expect(event.pubkey).toBe(pubkey);
     expect(event.sig).toBeDefined();

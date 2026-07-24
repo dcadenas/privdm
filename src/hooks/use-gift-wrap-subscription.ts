@@ -56,7 +56,8 @@ export function useGiftWrapSubscription(): ConnectionStatus {
       }
 
       for (const stored of profiles) {
-        const { pubkey, createdAt: _, ...profile } = stored;
+        const { pubkey, createdAt, ...profile } = stored;
+        void createdAt;
         queryClient.setQueryData(QUERY_KEYS.profile(pubkey), profile);
       }
 

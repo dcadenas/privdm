@@ -7,6 +7,9 @@ let currentSigner: NostrSigner | null = null;
 export function getPool(): SimplePool {
   if (!pool) {
     pool = new SimplePool({ enableReconnect: true, enablePing: true });
+    // PrivDM keeps a live gift-wrap subscription open indefinitely.
+    // nostr-tools otherwise closes idle relay sockets after 20 seconds.
+    pool.idleTimeout = 0;
     pool.automaticallyAuth = () => {
       if (!currentSigner) return null;
       const signer = currentSigner;
