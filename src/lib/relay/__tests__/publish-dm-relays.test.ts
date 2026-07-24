@@ -13,7 +13,25 @@ function makeSigner() {
 function makePool() {
   return {
     publish: vi.fn(() => [Promise.resolve('ok')]),
-  } as any;
+  };
+}
+
+function firstPublishCall(pool: ReturnType<typeof makePool>): [string[], {
+  kind: number;
+  tags: string[][];
+  content: string;
+  pubkey?: string;
+  sig?: string;
+}] {
+  const call = pool.publish.mock.calls[0];
+  if (!call) throw new Error('publish was not called');
+  return call as unknown as [string[], {
+    kind: number;
+    tags: string[][];
+    content: string;
+    pubkey?: string;
+    sig?: string;
+  }];
 }
 
 describe('publishDMRelayList', () => {
@@ -23,10 +41,10 @@ describe('publishDMRelayList', () => {
     const relays = ['wss://relay1.example.com', 'wss://relay2.example.com'];
     const broadcastRelays = ['wss://purplepag.es'];
 
-    await publishDMRelayList(signer, pool, relays, broadcastRelays);
+    await publishDMRelayList(signer, pool as never, relays, broadcastRelays);
 
     expect(pool.publish).toHaveBeenCalledTimes(1);
-    const [publishedRelays, event] = pool.publish.mock.calls[0]!;
+    const [publishedRelays, event] = firstPublishCall(pool);
 
     // Should publish to both DM relays and broadcast relays (deduplicated)
     expect(publishedRelays).toContain('wss://relay1.example.com');
@@ -51,9 +69,9 @@ describe('publishDMRelayList', () => {
     const signer = makeSigner();
     const pool = makePool();
 
-    await publishDMRelayList(signer, pool, ['WSS://Relay.Example.Com/'], []);
+    await publishDMRelayList(signer, pool as never, ['WSS://Relay.Example.Com/'], []);
 
-    const [, event] = pool.publish.mock.calls[0]!;
+    const [, event] = firstPublishCall(pool);
     expect(event.tags).toEqual([['relay', 'wss://relay.example.com']]);
   });
 
@@ -63,9 +81,9 @@ describe('publishDMRelayList', () => {
     const relays = ['wss://relay1.example.com'];
     const broadcastRelays = ['wss://relay1.example.com', 'wss://relay2.example.com'];
 
-    await publishDMRelayList(signer, pool, relays, broadcastRelays);
+    await publishDMRelayList(signer, pool as never, relays, broadcastRelays);
 
-    const [publishedRelays] = pool.publish.mock.calls[0]!;
+    const [publishedRelays] = firstPublishCall(pool);
     // relay1 appears in both lists but should only appear once in publish targets
     const relay1Count = publishedRelays.filter((r: string) => r === 'wss://relay1.example.com').length;
     expect(relay1Count).toBe(1);
@@ -77,7 +95,7 @@ describe('publishDMRelayList', () => {
     const pool = makePool();
 
     await expect(
-      publishDMRelayList(signer, pool, [], ['wss://purplepag.es']),
+      publishDMRelayList(signer, pool as never, [], ['wss://purplepag.es']),
     ).rejects.toThrow('At least one DM relay is required');
   });
 });

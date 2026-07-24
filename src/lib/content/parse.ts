@@ -85,7 +85,7 @@ function stripTrailingPunctuation(url: string): [string, string] {
 }
 
 function classifyUrl(raw: string): ContentSegment {
-  const [url, _trailing] = stripTrailingPunctuation(raw);
+  const [url] = stripTrailingPunctuation(raw);
 
   const youtubeId = extractYoutubeId(url);
   if (youtubeId) return { type: 'youtube', value: url, videoId: youtubeId };

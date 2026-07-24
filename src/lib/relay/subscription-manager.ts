@@ -23,7 +23,6 @@ export interface StartOptions {
 const RECONNECT_BASE_DELAY = 5_000;
 const RECONNECT_MAX_DELAY = 60_000;
 const RECONNECT_REPLAY_WINDOW = 3 * 24 * 60 * 60;
-const LIVENESS_CHECK_INTERVAL = 90_000; // 90 seconds
 export class GiftWrapSubscriptionManager {
   private sub: SubCloser | null = null;
   private processedWrapIds = new Set<string>();
@@ -31,11 +30,9 @@ export class GiftWrapSubscriptionManager {
   private queue: Event[] = [];
   private startOptions: StartOptions | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
-  private livenessTimer: ReturnType<typeof setInterval> | null = null;
-  private lastEventReceivedAt = 0;
   private lastEventTimestamp = 0;
   private stopped = false;
-  private restarting = false;
+  private subscriptionGeneration = 0;
   private reconnectAttempts = 0;
 
   seedProcessedWrapIds(ids: Set<string>): void {
@@ -45,11 +42,9 @@ export class GiftWrapSubscriptionManager {
   }
 
   start(options: StartOptions): void {
-    // Close existing sub and clear queue, but keep processedWrapIds.
-    // Set restarting flag so the onclose handler doesn't schedule another restart.
-    // Keep restarting=true until the new subscription is created to prevent
-    // async onclose from the old sub triggering a competing restart.
-    this.restarting = true;
+    // Invalidate the old subscription before closing it. Its onclose callback
+    // may arrive asynchronously after the replacement subscription is running.
+    const generation = ++this.subscriptionGeneration;
     this.sub?.close();
     this.sub = null;
     this.queue = [];
@@ -80,23 +75,22 @@ export class GiftWrapSubscriptionManager {
             console.log(`[subscription] first event after reconnect, resetting attempts (was ${this.reconnectAttempts})`);
           }
           this.reconnectAttempts = 0;
-          this.lastEventReceivedAt = Date.now();
           this.lastEventTimestamp = Math.max(this.lastEventTimestamp, event.created_at);
           this.queue.push(event);
           void this.processQueue(signer, queryClient, store);
         },
-        onclose: (reasons: string[]) => {
+        onclose: (results: { url: string; reason: string }[]) => {
           console.warn('[subscription] onclose fired', {
-            reasons: reasons.filter(Boolean),
+            results: results.filter(({ reason }) => Boolean(reason)),
             stopped: this.stopped,
-            restarting: this.restarting,
+            stale: generation !== this.subscriptionGeneration,
             reconnectAttempts: this.reconnectAttempts,
             lastEventTs: this.lastEventTimestamp
               ? new Date(this.lastEventTimestamp * 1000).toISOString()
               : 'none',
           });
 
-          if (this.stopped || this.restarting) return;
+          if (this.stopped || generation !== this.subscriptionGeneration) return;
 
           // Exponential backoff: 5s, 10s, 20s, 40s, 60s, 60s, ...
           const backoff = Math.min(
@@ -107,22 +101,8 @@ export class GiftWrapSubscriptionManager {
           console.log(`[subscription] scheduling restart in ${backoff}ms (attempt ${this.reconnectAttempts})`);
           this.restartTimer = setTimeout(() => this.reconnectRestart(false), backoff);
         },
-      } as never,
+      },
     );
-
-    // Safe to clear restarting now — new sub is created, any old onclose
-    // that fires will see the new this.sub and our restarting guard handled it.
-    this.restarting = false;
-    this.lastEventReceivedAt = Date.now();
-    if (this.livenessTimer) clearInterval(this.livenessTimer);
-    this.livenessTimer = setInterval(() => {
-      if (this.stopped) return;
-      const elapsed = Date.now() - this.lastEventReceivedAt;
-      if (elapsed >= LIVENESS_CHECK_INTERVAL) {
-        console.warn(`[subscription] no events for ${Math.round(elapsed / 1000)}s, forcing reconnect`);
-        this.reconnectRestart(true);
-      }
-    }, LIVENESS_CHECK_INTERVAL);
   }
 
   restart(): void {
@@ -142,6 +122,7 @@ export class GiftWrapSubscriptionManager {
 
     // Force-close relay connections so the pool creates fresh WebSockets.
     // After sleep/wake, existing connections are likely dead/zombie.
+    this.subscriptionGeneration++;
     pool.close(dmRelays);
 
     const since = nowSeconds() - RECONNECT_REPLAY_WINDOW;
@@ -160,13 +141,13 @@ export class GiftWrapSubscriptionManager {
       processedCount: this.processedWrapIds.size,
     });
     this.stopped = true;
+    this.subscriptionGeneration++;
     this.sub?.close();
     this.sub = null;
     this.queue = [];
     this.processedWrapIds.clear();
     this.lastEventTimestamp = 0;
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
-    if (this.livenessTimer) { clearInterval(this.livenessTimer); this.livenessTimer = null; }
   }
 
   isRunning(): boolean {

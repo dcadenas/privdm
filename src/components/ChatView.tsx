@@ -346,7 +346,7 @@ function MessageArea({
     if (isMine || !showScrollDown || !prevLastMsgId) {
       el.scrollTo({ top: el.scrollHeight, behavior: prevLastMsgId ? 'smooth' : 'auto' });
     }
-  }, [lastMsgId, myPubkey, messages]);
+  }, [lastMsgId, myPubkey, messages, showScrollDown]);
 
   const scrollToBottom = useCallback(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
