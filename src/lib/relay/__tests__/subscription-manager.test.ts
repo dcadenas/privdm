@@ -3,7 +3,11 @@ import { nip19 } from 'nostr-tools';
 import { QueryClient } from '@tanstack/react-query';
 import { NsecSigner } from 'divine-signer';
 import { createGiftWraps } from '../../nip17/giftwrap';
-import { GiftWrapSubscriptionManager, insertMessages } from '../subscription-manager';
+import {
+  GiftWrapSubscriptionManager,
+  insertMessage,
+  insertMessages,
+} from '../subscription-manager';
 import { QUERY_KEYS } from '../query-keys';
 import type { DecryptedMessage, Conversation } from '../types';
 import type { MessageStore } from '../../storage/message-store';
@@ -714,48 +718,48 @@ describe('GiftWrapSubscriptionManager', () => {
     expect(manager.processedCount).toBe(1);
   });
 
-  it('skips cache update when store reports duplicate', async () => {
-    const alice = makeSigner();
-    const bob = makeSigner();
+  it('rehydrates the cache when another tab already stored the message', async () => {
     const store = makeMockStore();
     (store.saveMessage as ReturnType<typeof vi.fn>).mockResolvedValue(false);
-
-    const { wraps } = await createGiftWraps(
-      alice.signer,
-      [{ pubkey: bob.pubkey }],
-      'duplicate',
-    );
-    const bobWrap = wraps[0]!;
-
-    let onEvent: ((event: typeof bobWrap) => void) | undefined;
-    const mockPool = {
-      close: vi.fn(),
-      subscribeMany: vi.fn((_relays, _filters, opts) => {
-        onEvent = opts.onevent;
-        return { close: vi.fn() };
-      }),
+    const message: DecryptedMessage = {
+      id: 'rumor-1',
+      conversationId: 'alice+bob',
+      senderPubkey: 'alice',
+      content: 'already stored',
+      createdAt: 123,
+      rumor: {
+        id: 'rumor-1',
+        pubkey: 'alice',
+        kind: 14,
+        content: 'already stored',
+        created_at: 123,
+        tags: [['p', 'bob']],
+      },
+      wrapId: 'wrap-1',
     };
+    const persistedMessages = [message];
+    const persistedConversations: Conversation[] = [{
+      id: message.conversationId,
+      participants: ['alice', 'bob'],
+      lastMessage: message,
+      messageCount: 1,
+    }];
+    (store.loadMessages as ReturnType<typeof vi.fn>).mockResolvedValue(persistedMessages);
+    (store.loadConversations as ReturnType<typeof vi.fn>).mockResolvedValue(
+      persistedConversations,
+    );
 
-    manager.start({
-      pool: mockPool as never,
-      userPubkey: bob.pubkey,
-      dmRelays: ['wss://test.relay'],
-      signer: bob.signer,
-      queryClient,
-      store,
-    });
+    const inserted = await insertMessage(queryClient, message, store, 456);
 
-    onEvent!(bobWrap);
-    onEvent!(bobWrap);
-
-    await vi.waitFor(() => expect(manager.processedCount).toBe(1));
-    await new Promise((r) => setTimeout(r, 50));
-
-    expect(store.saveMessage).toHaveBeenCalledTimes(1);
-
-    // Cache should NOT be updated since store said duplicate
-    const conversations = queryClient.getQueryData<Conversation[]>(QUERY_KEYS.conversations);
-    expect(conversations).toBeUndefined();
+    expect(inserted).toBe(false);
+    expect(store.loadMessages).toHaveBeenCalledWith(message.conversationId);
+    expect(store.loadConversations).toHaveBeenCalledOnce();
+    expect(
+      queryClient.getQueryData(QUERY_KEYS.messages(message.conversationId)),
+    ).toEqual(persistedMessages);
+    expect(queryClient.getQueryData(QUERY_KEYS.conversations)).toEqual(
+      persistedConversations,
+    );
   });
 
   it('does not reconnect a quiet subscription', () => {

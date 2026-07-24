@@ -214,7 +214,15 @@ export async function insertMessage(
 ): Promise<boolean> {
   if (store && wrapCreatedAt !== undefined) {
     const saved = await store.saveMessage(message, wrapCreatedAt);
-    if (!saved) return false;
+    if (!saved) {
+      const [messages, conversations] = await Promise.all([
+        store.loadMessages(message.conversationId),
+        store.loadConversations(),
+      ]);
+      queryClient.setQueryData(QUERY_KEYS.messages(message.conversationId), messages);
+      queryClient.setQueryData(QUERY_KEYS.conversations, conversations);
+      return false;
+    }
   }
 
   // Update messages for this conversation

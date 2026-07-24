@@ -305,18 +305,31 @@ function NewConversationDialog({
   );
 }
 
+const READ_BOTTOM_THRESHOLD = 48;
+const SHOW_LATEST_THRESHOLD = 300;
+
 function MessageArea({
   conversationId,
   myPubkey,
+  onRead,
 }: {
   conversationId: string;
   myPubkey: string;
+  onRead: (timestamp: number) => void;
 }) {
   const { data: messages = [] } = useMessages(conversationId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMsgId = messages[messages.length - 1]?.id;
   const prevLastMsgIdRef = useRef<string | undefined>();
+  const atBottomRef = useRef(true);
   const [showScrollDown, setShowScrollDown] = useState(false);
+
+  const markLatestRead = useCallback(() => {
+    const latest = messages[messages.length - 1];
+    if (latest && document.visibilityState === 'visible' && atBottomRef.current) {
+      onRead(latest.createdAt);
+    }
+  }, [messages, onRead]);
 
   const hasMessages = messages.length > 0;
   useEffect(() => {
@@ -324,11 +337,18 @@ function MessageArea({
     if (!el) return;
     const handleScroll = () => {
       const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-      setShowScrollDown(dist > 300);
+      atBottomRef.current = dist <= READ_BOTTOM_THRESHOLD;
+      setShowScrollDown(dist > SHOW_LATEST_THRESHOLD);
+      markLatestRead();
     };
+    const handleVisibilityChange = () => markLatestRead();
     el.addEventListener('scroll', handleScroll, { passive: true });
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, [hasMessages]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [hasMessages, markLatestRead]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -343,10 +363,13 @@ function MessageArea({
     const lastMsg = messages[messages.length - 1];
     const isMine = lastMsg?.senderPubkey === myPubkey;
 
-    if (isMine || !showScrollDown || !prevLastMsgId) {
+    if (isMine || atBottomRef.current || !prevLastMsgId) {
       el.scrollTo({ top: el.scrollHeight, behavior: prevLastMsgId ? 'smooth' : 'auto' });
+      atBottomRef.current = true;
+      setShowScrollDown(false);
+      markLatestRead();
     }
-  }, [lastMsgId, myPubkey, messages, showScrollDown]);
+  }, [lastMsgId, markLatestRead, messages, myPubkey]);
 
   const scrollToBottom = useCallback(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -485,11 +508,12 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
 
   const selected = conversations.find((c) => c.id === selectedId);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    const conv = conversations.find((c) => c.id === selectedId);
-    if (conv) markRead(selectedId, conv.lastMessage.createdAt);
-  }, [selectedId, conversations, markRead]);
+  const markSelectedRead = useCallback(
+    (timestamp: number) => {
+      if (selectedId) markRead(selectedId, timestamp);
+    },
+    [markRead, selectedId],
+  );
 
   useEffect(() => {
     document.title = unreadCount > 0 ? `(${unreadCount}) PrivDM` : 'PrivDM';
@@ -648,7 +672,12 @@ export function ChatView({ connectionStatus }: { connectionStatus: ConnectionSta
               )}
             </div>
 
-            <MessageArea conversationId={selectedId} myPubkey={pubkey!} />
+            <MessageArea
+              key={selectedId}
+              conversationId={selectedId}
+              myPubkey={pubkey!}
+              onRead={markSelectedRead}
+            />
 
             <ComposeArea recipientPubkeys={recipientPubkeys} disabled={!connectionStatus.isConnected} />
           </>
