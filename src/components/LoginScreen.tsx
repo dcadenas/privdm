@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { NsecSigner, ExtensionSigner, BunkerNIP44Signer, buildOAuthUrl } from 'divine-signer';
 import { getOAuthConfig } from '@/lib/auth/oauth-config';
+import { extensionErrorMessage, withExtensionWakeupRetry } from '@/lib/auth/extension-errors';
 import { useNostrConnect } from '@/hooks/use-nostr-connect';
 
 type NostrMethod = 'nsec' | 'extension' | 'bunker' | 'nostrconnect';
@@ -62,7 +63,7 @@ export function LoginScreen() {
         }
         case 'extension': {
           const signer = new ExtensionSigner();
-          await login(signer, { type: 'extension' });
+          await withExtensionWakeupRetry(() => login(signer, { type: 'extension' }));
           break;
         }
         case 'bunker': {
@@ -73,7 +74,7 @@ export function LoginScreen() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(extensionErrorMessage(err));
     } finally {
       setLoading(false);
     }

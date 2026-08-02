@@ -6,6 +6,7 @@ import { OAuthSigner, createSessionStore, restoreSession } from 'divine-signer';
 import { oauthStorage } from '@/lib/auth/oauth-storage';
 import { messageStore } from '@/lib/storage/singleton';
 import { setPoolAuth, clearPoolAuth } from '@/lib/relay/pool';
+import { withExtensionWakeupRetry } from '@/lib/auth/extension-errors';
 
 const sessionStore = createSessionStore(localStorage, 'nostr_dm');
 const LAST_PUBKEY_KEY = 'privdm:lastPubkey';
@@ -81,7 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const signer = await Promise.race([
           restoreSession(stored).then(async (s) => {
-            await s.getPublicKey(); // validate the session is still good
+            // Retry: a NIP-07 extension's service worker may still be waking up
+            await withExtensionWakeupRetry(() => s.getPublicKey()); // validate the session is still good
             return s;
           }),
           new Promise<never>((_, reject) =>
