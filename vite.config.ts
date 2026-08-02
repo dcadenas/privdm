@@ -31,6 +31,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    exclude: ['node_modules', 'e2e'],
+    // Globs, not bare names: nested checkouts (git worktrees under .worktrees/)
+    // otherwise drag their own node_modules and e2e specs into the run.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.worktrees/**', 'e2e/**'],
   },
 });
