@@ -13,7 +13,18 @@ export function getPool(): SimplePool {
     pool.automaticallyAuth = () => {
       if (!currentSigner) return null;
       const signer = currentSigner;
-      return (event) => signer.signEvent(event);
+      return async (event) => {
+        try {
+          return await signer.signEvent(event);
+        } catch (err) {
+          // A relay re-challenges on reconnect. If signing the challenge fails
+          // the relay silently stops serving us, so make that visible.
+          console.warn('[pool] relay AUTH signing failed, relay will stop serving', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          throw err;
+        }
+      };
     };
   }
   return pool;

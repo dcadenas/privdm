@@ -195,8 +195,16 @@ export class GiftWrapSubscriptionManager {
 
           await insertMessage(queryClient, message, store, event.created_at);
           this.processedWrapIds.add(event.id);
-        } catch {
+        } catch (err) {
           // Leave decrypt and storage failures retryable on later delivery.
+          // Logged because an unwrap that fails here is otherwise invisible:
+          // the message never renders and nothing surfaces until a reload
+          // causes the relay to redeliver the wrap.
+          console.warn('[subscription] gift wrap processing failed, awaiting redelivery', {
+            wrapId: event.id.slice(0, 8),
+            from: event.pubkey.slice(0, 8),
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
     } finally {

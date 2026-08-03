@@ -106,6 +106,51 @@ describe('GiftWrapSubscriptionManager', () => {
     expect(msgs![0]!.senderPubkey).toBe(alice.pubkey);
   });
 
+  it('warns and leaves the wrap retryable when unwrapping fails', async () => {
+    const alice = makeSigner();
+    const bob = makeSigner();
+    const carol = makeSigner();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { wraps } = await createGiftWraps(
+      alice.signer,
+      [{ pubkey: bob.pubkey }],
+      'not for carol',
+    );
+    const bobWrap = wraps[0]!;
+
+    let onEvent: ((event: typeof bobWrap) => void) | undefined;
+    const mockPool = {
+      close: vi.fn(),
+      subscribeMany: vi.fn((_relays, _filters, opts) => {
+        onEvent = opts.onevent;
+        return { close: vi.fn() };
+      }),
+    };
+
+    // carol cannot decrypt a wrap sealed for bob
+    manager.start({
+      pool: mockPool as never,
+      userPubkey: carol.pubkey,
+      dmRelays: ['wss://test.relay'],
+      signer: carol.signer,
+      queryClient,
+    });
+
+    onEvent!(bobWrap);
+
+    await vi.waitFor(() => {
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('[subscription]'),
+        expect.objectContaining({ wrapId: expect.any(String) }),
+      );
+    });
+
+    // Not marked processed, so a later redelivery can still succeed
+    expect(manager.processedCount).toBe(0);
+    warn.mockRestore();
+  });
+
   it('deduplicates events by wrap ID', async () => {
     const alice = makeSigner();
     const bob = makeSigner();
